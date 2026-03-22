@@ -54,6 +54,9 @@ public:
     bool loadPosts();
     bool savePosts();
 
+    // Logos integration
+    void initLogos(void* api);
+
 public slots:
     void shutdown();
 

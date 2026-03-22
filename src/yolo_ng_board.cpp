@@ -37,6 +37,19 @@ YoloNgBoard::~YoloNgBoard()
     qDebug() << "YoloNgBoard: Destroyed";
 }
 
+void YoloNgBoard::initLogos(void* api)
+{
+#ifdef LOGOS_CORE_AVAILABLE
+    Q_UNUSED(api)
+    extern void* logos_core_get_kv_interface();
+    m_kv = logos_core_get_kv_interface();
+    qDebug() << "YoloNgBoard: Logos initialized, KV interface" << (m_kv ? "available" : "not available");
+#else
+    Q_UNUSED(api)
+    qDebug() << "YoloNgBoard: Logos core not available";
+#endif
+}
+
 QVariantList YoloNgBoard::posts() const
 {
     QVariantList result;
