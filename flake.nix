@@ -3,7 +3,7 @@
 
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder/4fa6816bc065f974169150448c066ef4047a2e43";
-    nixpkgs.follows = "logos-module-builder/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/bfc1b8a4574108ceef22f02bafcf6611380c100d";
     logos-cpp-sdk = {
       url = "github:logos-co/logos-cpp-sdk";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -121,26 +121,29 @@
           };
 
           lgx = pkgs.runCommand "yolo-ng.lgx" {} ''
-            mkdir -p $out/yolo_ng
+            mkdir -p $out
+
+            # Root manifest
+            cat > $out/manifest.json <<'ROOTMANIFEST'
+            {"name":"yolo_ng","version":"0.1.0","type":"core","manifestVersion":"0.1.0","variants":["linux-x86_64"]}
+            ROOTMANIFEST
+
+            # Variant directory
+            mkdir -p $out/variants/linux-x86_64/qml
 
             # Headless module plugin
-            cp ${headless-plugin}/lib/yolo_ng_plugin* $out/yolo_ng/ 2>/dev/null || true
+            cp ${headless-plugin}/lib/yolo_ng_plugin* $out/variants/linux-x86_64/ 2>/dev/null || true
 
             # UI plugin
-            cp ${ui-plugin}/lib/libyolo_ng_ui* $out/yolo_ng/ 2>/dev/null || true
+            cp ${ui-plugin}/lib/libyolo_ng_ui* $out/variants/linux-x86_64/ 2>/dev/null || true
 
             # QML files
-            mkdir -p $out/yolo_ng/qml
-            cp -r ${./qml}/* $out/yolo_ng/qml/
+            cp -r ${./qml}/* $out/variants/linux-x86_64/qml/
 
             # Metadata
-            cp ${./metadata.json} $out/yolo_ng/metadata.json
-            cp ${./manifest.json} $out/yolo_ng/manifest.json
-            cp ${./ui_metadata.json} $out/yolo_ng/ui_metadata.json
-
-            # Create the .lgx archive
-            cd $out
-            tar czf $out/yolo-ng.lgx -C $out yolo_ng
+            cp ${./metadata.json} $out/variants/linux-x86_64/metadata.json
+            cp ${./manifest.json} $out/variants/linux-x86_64/manifest.json
+            cp ${./ui_metadata.json} $out/variants/linux-x86_64/ui_metadata.json
           '';
 
         in

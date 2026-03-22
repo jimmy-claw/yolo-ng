@@ -2,6 +2,7 @@
 #include "yolo_ng_board.h"
 
 #include <QDebug>
+#include <QDateTime>
 
 // ── Construction ─────────────────────────────────────────────────────────────
 
@@ -51,4 +52,26 @@ void YoloNgPlugin::likePost(const QString &postId)
 void YoloNgPlugin::refreshPosts()
 {
     m_board->refreshPosts();
+}
+
+QString YoloNgPlugin::testInscription()
+{
+    QString content = QStringLiteral("Automated inscription test ") +
+                      QDateTime::currentDateTime().toString(Qt::ISODate);
+    QString postId = m_board->createPost(QStringLiteral("test-agent"), content, QString());
+
+    // Find the post to retrieve inscription ID
+    QVariantList allPosts = m_board->posts();
+    QString inscriptionId;
+    for (const QVariant &v : allPosts) {
+        QVariantMap map = v.toMap();
+        if (map[QStringLiteral("id")].toString() == postId) {
+            inscriptionId = map[QStringLiteral("inscriptionId")].toString();
+            break;
+        }
+    }
+
+    qInfo() << "YoloNgPlugin::testInscription: postId=" << postId
+            << "inscriptionId=" << inscriptionId;
+    return inscriptionId;
 }

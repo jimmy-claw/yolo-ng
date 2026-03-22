@@ -20,7 +20,7 @@ The returned inscription ID is stored on the post and included in the posts API 
 ## Build
 
 ```sh
-# Full .lgx package
+# Full .lgx package (variants/ structure)
 nix build .#lgx
 
 # Headless plugin only
@@ -29,6 +29,32 @@ nix build .#headless-plugin
 # UI plugin only
 nix build .#ui-plugin
 ```
+
+## LGX Package Structure
+
+The `.lgx` output uses a variants directory layout:
+
+```
+manifest.json               # root: name, version, type, variants list
+variants/
+  linux-x86_64/
+    manifest.json            # full module manifest
+    yolo_ng_plugin.so        # headless plugin
+    libyolo_ng_ui.so         # UI plugin
+    qml/                     # QML resources
+    metadata.json
+    ui_metadata.json
+```
+
+## Headless Testing
+
+Test blockchain inscription without a GUI:
+
+```sh
+logoscore -c "yolo_ng.testInscription()"
+```
+
+This calls `createPost` with author `test-agent` and a timestamped message, then returns the inscription ID.
 
 ## Architecture
 

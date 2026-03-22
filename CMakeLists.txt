@@ -42,6 +42,10 @@ endif()
 option(BUILD_MODULE "Build headless logoscore plugin" OFF)
 
 if(BUILD_MODULE)
+    if(NOT LOGOS_CPP_SDK_ROOT OR NOT LOGOS_LIBLOGOS_ROOT)
+        message(FATAL_ERROR "BUILD_MODULE requires -DLOGOS_CPP_SDK_ROOT=<path> -DLOGOS_LIBLOGOS_ROOT=<path>")
+    endif()
+
     find_package(Qt6 REQUIRED COMPONENTS Core Qml RemoteObjects)
 
     qt_add_plugin(yolo_ng_plugin CLASS_NAME YoloNgPlugin)
@@ -57,46 +61,28 @@ if(BUILD_MODULE)
         src/yolo_ng_board.h
     )
 
-    # Copy plugin metadata to build directory
-    configure_file(
-        ${CMAKE_SOURCE_DIR}/src/yolo_ng_plugin.json
-        ${CMAKE_CURRENT_BINARY_DIR}/yolo_ng_plugin.json
-        COPYONLY
-    )
-
     target_include_directories(yolo_ng_plugin PRIVATE
         src
         ${CMAKE_SOURCE_DIR}
+        "${LOGOS_LIBLOGOS_ROOT}/include"
+        "${LOGOS_CPP_SDK_ROOT}/include"
+        "${LOGOS_CPP_SDK_ROOT}/include/cpp"
+        "${LOGOS_CPP_SDK_ROOT}/include/core"
     )
 
-    if(LOGOS_CORE_AVAILABLE)
-        target_include_directories(yolo_ng_plugin PRIVATE
-            "${LOGOS_LIBLOGOS_ROOT}/include"
-            "${LOGOS_CPP_SDK_ROOT}/include"
-            "${LOGOS_CPP_SDK_ROOT}/include/cpp"
-            "${LOGOS_CPP_SDK_ROOT}/include/core"
-        )
-        
-        find_library(MODULE_LOGOS_CORE_LIB logos_core
-            HINTS "${LOGOS_LIBLOGOS_ROOT}/lib" NO_DEFAULT_PATH)
-        target_link_libraries(yolo_ng_plugin PRIVATE
-            Qt6::Core Qt6::Qml Qt6::RemoteObjects
-            ${MODULE_LOGOS_CORE_LIB}
-        )
-    else()
-        target_link_libraries(yolo_ng_plugin PRIVATE
-            Qt6::Core Qt6::Qml Qt6::RemoteObjects
-        )
-    endif()
+    # Link logos_core for LogosAPI/PluginInterface symbols (but do NOT define
+    # LOGOS_CORE_AVAILABLE — the board's extern-C KV stubs don't exist yet).
+    find_library(MODULE_LOGOS_CORE_LIB logos_core
+        HINTS "${LOGOS_LIBLOGOS_ROOT}/lib" NO_DEFAULT_PATH)
+    target_link_libraries(yolo_ng_plugin PRIVATE
+        Qt6::Core Qt6::Qml Qt6::RemoteObjects
+        ${MODULE_LOGOS_CORE_LIB}
+    )
 
     target_compile_definitions(yolo_ng_plugin PRIVATE
         QT_PLUGIN
         YOLO_NG_PLUGIN
     )
-
-    if(LOGOS_CORE_AVAILABLE)
-        target_compile_definitions(yolo_ng_plugin PRIVATE LOGOS_CORE_AVAILABLE)
-    endif()
 
     if(APPLE)
         set_target_properties(yolo_ng_plugin PROPERTIES

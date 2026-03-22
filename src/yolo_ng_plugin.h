@@ -34,6 +34,7 @@ public:
     Q_INVOKABLE void deletePost(const QString &postId);
     Q_INVOKABLE void likePost(const QString &postId);
     Q_INVOKABLE void refreshPosts();
+    Q_INVOKABLE QString testInscription();
 
 signals:
     void eventResponse(const QString &eventName, const QVariantList &args);

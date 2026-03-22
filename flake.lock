@@ -1037,6 +1037,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_20": {
+      "locked": {
+        "lastModified": 1769461804,
+        "narHash": "sha256-msG8SU5WsBUfVVa/9RPLaymvi5bI8edTavbIq3vRlhI=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "bfc1b8a4574108ceef22f02bafcf6611380c100d",
+        "type": "github"
+      }
+    },
     "nixpkgs_3": {
       "locked": {
         "lastModified": 1759036355,
@@ -1154,10 +1170,7 @@
         "logos-cpp-sdk": "logos-cpp-sdk",
         "logos-liblogos": "logos-liblogos",
         "logos-module-builder": "logos-module-builder",
-        "nixpkgs": [
-          "logos-module-builder",
-          "nixpkgs"
-        ]
+        "nixpkgs": "nixpkgs_20"
       }
     }
   },
