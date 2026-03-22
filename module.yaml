@@ -1,0 +1,9 @@
+name: yolo_ng
+version: 0.1.0
+type: module
+category: social
+description: YOLO-NG Text Board Miniapp
+dependencies:
+  - blockchain_module
+  - kv_module
+  - storage_module

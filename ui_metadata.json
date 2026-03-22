@@ -1,0 +1,13 @@
+{
+    "name": "yolo_ng_ui",
+    "version": "0.1.0",
+    "description": "YOLO-NG Text Board UI Plugin",
+    "author": "jimmy-claw",
+    "type": "ui",
+    "category": "social",
+    "dependencies": ["yolo_ng"],
+    "main": {
+        "linux-amd64": "libyolo_ng_ui.so"
+    },
+    "manifestVersion": "0.1.0"
+}

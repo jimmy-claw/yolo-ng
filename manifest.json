@@ -1,0 +1,20 @@
+{
+  "name": "yolo_ng",
+  "version": "0.1.0",
+  "description": "YOLO-NG Text Board Miniapp",
+  "author": "jimmy-claw",
+  "type": "module",
+  "category": "social",
+  "main": {
+    "linux-x86_64": "yolo_ng_plugin.so",
+    "linux-amd64": "yolo_ng_plugin.so",
+    "linux-arm64": "yolo_ng_plugin.so",
+    "linux-aarch64": "yolo_ng_plugin.so",
+    "darwin-x86_64": "yolo_ng_plugin.dylib",
+    "darwin-arm64": "yolo_ng_plugin.dylib",
+    "windows-x86_64": "yolo_ng_plugin.dll"
+  },
+  "dependencies": ["blockchain_module", "kv_module", "storage_module"],
+  "capabilities": [],
+  "manifestVersion": "0.1.0"
+}
