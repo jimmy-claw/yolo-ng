@@ -14,7 +14,7 @@
     "darwin-arm64": "yolo_ng_plugin.dylib",
     "windows-x86_64": "yolo_ng_plugin.dll"
   },
-  "dependencies": ["blockchain_module", "kv_module", "storage_module"],
+  "dependencies": ["blockchain_module", "kv_module"],
   "capabilities": [],
   "manifestVersion": "0.1.0"
 }
