@@ -6,6 +6,9 @@
 #include <QVariantList>
 #include <QDateTime>
 
+class LogosAPI;
+class LogosAPIClient;
+
 /**
  * Post — represents a single post on the YOLO-NG text board
  */
@@ -17,6 +20,7 @@ struct Post
     QDateTime timestamp;
     int likes = 0;
     QString parentId;
+    QString inscriptionId;
 };
 
 /**
@@ -55,7 +59,7 @@ public:
     bool savePosts();
 
     // Logos integration
-    void initLogos(void* api);
+    void initLogos(LogosAPI* api);
 
 public slots:
     void shutdown();
@@ -69,6 +73,7 @@ signals:
 private:
     QString generatePostId();
     Post* findPost(const QString& id);
+    void inscribePost(const QString& postId, const QString& content);
 
 #ifdef LOGOS_CORE_AVAILABLE
     void handleRequest(const QString& method, const QVariantMap& params, void* callback);
@@ -80,4 +85,5 @@ private:
 #ifdef LOGOS_CORE_AVAILABLE
     void* m_kv = nullptr;
 #endif
+    LogosAPIClient* m_blockchain = nullptr;
 };

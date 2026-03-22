@@ -11,7 +11,8 @@
     "linux-aarch64": "yolo_ng_plugin.so"
   },
   "dependencies": [
-    "kv_module"
+    "kv_module",
+    "liblogos_blockchain_module"
   ],
   "capabilities": [],
   "manifestVersion": "0.1.0"

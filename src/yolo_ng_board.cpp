@@ -5,6 +5,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <logos_api.h>
+#include <logos_api_client.h>
 
 YoloNgBoard::YoloNgBoard(QObject* parent)
     : QObject(parent)
@@ -37,17 +39,27 @@ YoloNgBoard::~YoloNgBoard()
     qDebug() << "YoloNgBoard: Destroyed";
 }
 
-void YoloNgBoard::initLogos(void* api)
+void YoloNgBoard::initLogos(LogosAPI* api)
 {
+    if (!api) {
+        qWarning() << "YoloNgBoard: initLogos called with null LogosAPI";
+        return;
+    }
+
 #ifdef LOGOS_CORE_AVAILABLE
-    Q_UNUSED(api)
     extern void* logos_core_get_kv_interface();
     m_kv = logos_core_get_kv_interface();
-    qDebug() << "YoloNgBoard: Logos initialized, KV interface" << (m_kv ? "available" : "not available");
-#else
-    Q_UNUSED(api)
-    qDebug() << "YoloNgBoard: Logos core not available";
+    qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
 #endif
+
+    m_blockchain = api->getClient("liblogos_blockchain_module");
+    if (!m_blockchain) {
+        qWarning() << "YoloNgBoard: blockchain_module client not available";
+    } else {
+        qInfo() << "YoloNgBoard: blockchain_module client acquired";
+    }
+
+    qInfo() << "YoloNgBoard: Logos initialized";
 }
 
 QVariantList YoloNgBoard::posts() const
@@ -61,6 +73,7 @@ QVariantList YoloNgBoard::posts() const
         map[QStringLiteral("timestamp")] = post.timestamp.toString(Qt::ISODate);
         map[QStringLiteral("likes")] = post.likes;
         map[QStringLiteral("parentId")] = post.parentId;
+        map[QStringLiteral("inscriptionId")] = post.inscriptionId;
         result.append(map);
     }
     return result;
@@ -88,6 +101,8 @@ QString YoloNgBoard::createPost(const QString& author, const QString& content, c
 
     m_posts.prepend(post);
     savePosts();
+
+    inscribePost(post.id, post.content);
 
     qDebug() << "YoloNgBoard: Created post" << post.id;
     emit postCreated(post.id);
@@ -148,6 +163,37 @@ Post* YoloNgBoard::findPost(const QString& id)
     return nullptr;
 }
 
+void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
+{
+    if (!m_blockchain) {
+        qWarning() << "YoloNgBoard: cannot inscribe post — blockchain client not available";
+        return;
+    }
+
+    static const QString channelId =
+        QStringLiteral("c7e29d343bd1e75e2d019c83931c910d46306a4c60ae614a6f44c36b40625dd2");
+    static const QString signingKey =
+        QStringLiteral("4b7840bd0aebdc82a8dc49f7ff5c11a776f6f3f1d1c17ac6fe0fdd960619079e");
+
+    QVariant result = m_blockchain->invokeRemoteMethod(
+        "liblogos_blockchain_module", "zone_inscribe",
+        channelId, content, signingKey);
+
+    QString inscriptionId = result.toString();
+    if (inscriptionId.isEmpty()) {
+        qWarning() << "YoloNgBoard: inscription failed for post" << postId;
+        return;
+    }
+
+    qInfo() << "YoloNgBoard: post" << postId << "inscribed as" << inscriptionId;
+
+    Post* post = findPost(postId);
+    if (post) {
+        post->inscriptionId = inscriptionId;
+        savePosts();
+    }
+}
+
 bool YoloNgBoard::loadPosts()
 {
 #ifdef LOGOS_CORE_AVAILABLE
@@ -177,6 +223,7 @@ bool YoloNgBoard::loadPosts()
                         obj[QStringLiteral("timestamp")].toString(), Qt::ISODate);
                     post.likes = obj[QStringLiteral("likes")].toInt();
                     post.parentId = obj[QStringLiteral("parentId")].toString();
+                    post.inscriptionId = obj[QStringLiteral("inscriptionId")].toString();
                     m_posts.append(post);
                 }
             }
@@ -206,6 +253,7 @@ bool YoloNgBoard::savePosts()
         obj[QStringLiteral("timestamp")] = post.timestamp.toString(Qt::ISODate);
         obj[QStringLiteral("likes")] = post.likes;
         obj[QStringLiteral("parentId")] = post.parentId;
+        obj[QStringLiteral("inscriptionId")] = post.inscriptionId;
         array.append(obj);
     }
 
