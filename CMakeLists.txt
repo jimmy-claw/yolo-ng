@@ -123,6 +123,7 @@ if(BUILD_UI_PLUGIN)
 
     add_library(${UI_TARGET} SHARED
         "${CMAKE_SOURCE_DIR}/src/yolo_ng_ui_component.cpp"
+        "${CMAKE_SOURCE_DIR}/qml/yolo_ng.qrc"
         "${CMAKE_SOURCE_DIR}/src/yolo_ng_board.cpp"
     )
 
