@@ -151,7 +151,7 @@ Rectangle {
                     Layout.fillHeight: true
                     width: 100
                     text: "Post"
-                    enabled: postInput.text.trimmed.length > 0
+                    enabled: postInput.text.trim().length > 0
 
                     contentItem: Text {
                         text: parent.text
@@ -166,7 +166,7 @@ Rectangle {
                     }
 
                     onClicked: {
-                        if (board && postInput.text.trimmed.length > 0) {
+                        if (board && postInput.text.trim().length > 0) {
                             var result = board.submitPost(postInput.text)
                             if (result) {
                                 postInput.clear()
