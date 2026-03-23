@@ -52,11 +52,11 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
 #endif
 
-    m_blockchain = api->getClient("liblogos_blockchain_module");
-    if (!m_blockchain) {
-        qWarning() << "YoloNgBoard: blockchain_module client not available";
+    m_zoneSequencer = api->getClient("liblogos_zone_sequencer_module");
+    if (!m_zoneSequencer) {
+        qWarning() << "YoloNgBoard: zone_sequencer_module client not available";
     } else {
-        qInfo() << "YoloNgBoard: blockchain_module client acquired";
+        qInfo() << "YoloNgBoard: zone_sequencer_module client acquired";
     }
 
     qInfo() << "YoloNgBoard: Logos initialized";
@@ -165,23 +165,33 @@ Post* YoloNgBoard::findPost(const QString& id)
 
 void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
 {
-    if (!m_blockchain) {
-        qWarning() << "YoloNgBoard: cannot inscribe post — blockchain client not available";
+    if (!m_zoneSequencer) {
+        qWarning() << "YoloNgBoard: zone sequencer client not available";
         return;
     }
 
-    static const QString channelId =
-        QStringLiteral("c7e29d343bd1e75e2d019c83931c910d46306a4c60ae614a6f44c36b40625dd2");
     static const QString signingKey =
-        QStringLiteral("4b7840bd0aebdc82a8dc49f7ff5c11a776f6f3f1d1c17ac6fe0fdd960619079e");
+        QStringLiteral("67471408511008750378440791c53a082c6ee1141cd4bdf40699b7e44764126b");
+    static const QString nodeUrl =
+        QStringLiteral("http://192.168.0.209:8080");
+    static const QString checkpointPath =
+        QStringLiteral("/tmp/yolo_ng_sequencer.checkpoint");
 
-    QVariant result = m_blockchain->invokeRemoteMethod(
-        "liblogos_blockchain_module", "zone_inscribe",
-        channelId, content, signingKey);
+    // Configure the zone sequencer (idempotent)
+    m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "set_node_url", nodeUrl);
+    m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "set_signing_key", signingKey);
+    m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "set_checkpoint_path", checkpointPath);
+
+    // Publish the post content
+    QVariant result = m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "publish", content);
 
     QString inscriptionId = result.toString();
-    if (inscriptionId.isEmpty()) {
-        qWarning() << "YoloNgBoard: inscription failed for post" << postId;
+    if (inscriptionId.isEmpty() || inscriptionId.startsWith("Error")) {
+        qWarning() << "YoloNgBoard: inscription failed for post" << postId << ":" << inscriptionId;
         return;
     }
 

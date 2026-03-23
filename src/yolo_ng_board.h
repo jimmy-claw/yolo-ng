@@ -85,5 +85,5 @@ private:
 #ifdef LOGOS_CORE_AVAILABLE
     void* m_kv = nullptr;
 #endif
-    LogosAPIClient* m_blockchain = nullptr;
+    LogosAPIClient* m_zoneSequencer = nullptr;
 };
