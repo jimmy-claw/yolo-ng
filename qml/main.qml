@@ -166,8 +166,8 @@ Rectangle {
 
                     onClicked: {
                         if (board && postInput.text.trim().length > 0) {
-                            var result = board.submitPost(postInput.text)
-                            if (result) {
+                            var result = board.createPost("anonymous", postInput.text)
+                            if (result !== "") {
                                 postInput.clear()
                             }
                         }
