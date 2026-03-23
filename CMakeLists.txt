@@ -46,7 +46,7 @@ if(BUILD_MODULE)
         message(FATAL_ERROR "BUILD_MODULE requires -DLOGOS_CPP_SDK_ROOT=<path> -DLOGOS_LIBLOGOS_ROOT=<path>")
     endif()
 
-    find_package(Qt6 REQUIRED COMPONENTS Core Qml RemoteObjects)
+    find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects)
 
     qt_add_plugin(yolo_ng_plugin CLASS_NAME YoloNgPlugin)
     set_target_properties(yolo_ng_plugin PROPERTIES
@@ -75,7 +75,7 @@ if(BUILD_MODULE)
     find_library(MODULE_LOGOS_CORE_LIB logos_core
         HINTS "${LOGOS_LIBLOGOS_ROOT}/lib" NO_DEFAULT_PATH)
     target_link_libraries(yolo_ng_plugin PRIVATE
-        Qt6::Core Qt6::Qml Qt6::RemoteObjects
+        Qt6::Core Qt6::RemoteObjects
         ${MODULE_LOGOS_CORE_LIB}
     )
 
