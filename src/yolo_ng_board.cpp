@@ -2,10 +2,13 @@
 #include <dlfcn.h>
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDebug>
+#include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QStandardPaths>
 #include <logos_api.h>
 #include <logos_api_client.h>
 
@@ -75,6 +78,22 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     }
 
     qInfo() << "YoloNgBoard: Logos initialized";
+}
+
+void YoloNgBoard::setBoard(const QString& name, const QString& secret)
+{
+    QByteArray input = (name + ":" + secret).toUtf8();
+    QByteArray hash = QCryptographicHash::hash(input, QCryptographicHash::Sha256);
+    m_signingKeyHex = hash.toHex();
+    m_boardName = name;
+
+    QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/yolo-ng/";
+    QDir().mkpath(dataDir);
+    QByteArray nameHash = QCryptographicHash::hash(name.toUtf8(), QCryptographicHash::Sha256);
+    m_checkpointPath = dataDir + nameHash.toHex().left(16) + ".checkpoint";
+
+    qInfo() << "YoloNgBoard: board set to" << name << "checkpoint:" << m_checkpointPath;
+    emit boardNameChanged();
 }
 
 QVariantList YoloNgBoard::posts() const
@@ -190,20 +209,20 @@ void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
         return;
     }
 
-    static const QString signingKey =
-        QStringLiteral("44f3f101ef8e33fd9069159dcc689835259f5aaff6b30ff130b11911c8ea93b6");
-    static const QString nodeUrl =
-        QStringLiteral("http://192.168.0.209:8080");
-    static const QString checkpointPath =
-        QStringLiteral("/tmp/yolo-ng-demo.checkpoint");
+    if (m_signingKeyHex.isEmpty()) {
+        qWarning() << "YoloNgBoard: no board set, cannot inscribe";
+        return;
+    }
+
+    static const QString nodeUrl = QStringLiteral("http://192.168.0.209:8080");
 
     // Configure the zone sequencer (idempotent)
     m_zoneSequencer->invokeRemoteMethod(
         "liblogos_zone_sequencer_module", "set_node_url", nodeUrl);
     m_zoneSequencer->invokeRemoteMethod(
-        "liblogos_zone_sequencer_module", "set_signing_key", signingKey);
+        "liblogos_zone_sequencer_module", "set_signing_key", m_signingKeyHex);
     m_zoneSequencer->invokeRemoteMethod(
-        "liblogos_zone_sequencer_module", "set_checkpoint_path", checkpointPath);
+        "liblogos_zone_sequencer_module", "set_checkpoint_path", m_checkpointPath);
 
     // Publish the post content
     QVariant result = m_zoneSequencer->invokeRemoteMethod(

@@ -6,10 +6,100 @@ Rectangle {
     id: root
     color: "#1a1a2e"
 
+    // Board setup screen
+    Rectangle {
+        visible: !board || board.boardName === ""
+        anchors.fill: parent
+        color: "#1a1a2e"
+        z: 1
 
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 20
+            width: 300
+
+            Text {
+                text: "YOLO-NG"
+                font.pixelSize: 32
+                font.bold: true
+                color: "#e94560"
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Text {
+                text: "Enter board name and secret to connect"
+                font.pixelSize: 14
+                color: "#a0a0a0"
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            TextField {
+                id: boardNameInput
+                Layout.fillWidth: true
+                placeholderText: "Board name"
+                color: "#ffffff"
+                font.pixelSize: 14
+                background: Rectangle {
+                    color: "#0f3460"
+                    radius: 6
+                }
+                leftPadding: 12
+                rightPadding: 12
+                topPadding: 10
+                bottomPadding: 10
+            }
+
+            TextField {
+                id: boardSecretInput
+                Layout.fillWidth: true
+                placeholderText: "Secret"
+                echoMode: TextInput.Password
+                color: "#ffffff"
+                font.pixelSize: 14
+                background: Rectangle {
+                    color: "#0f3460"
+                    radius: 6
+                }
+                leftPadding: 12
+                rightPadding: 12
+                topPadding: 10
+                bottomPadding: 10
+                Keys.onReturnPressed: {
+                    if (boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0)
+                        board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                text: "Connect"
+                enabled: boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0
+
+                contentItem: Text {
+                    text: parent.text
+                    color: parent.enabled ? "#ffffff" : "#666666"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: 16
+                }
+
+                background: Rectangle {
+                    color: parent.enabled ? "#e94560" : "#444444"
+                    radius: 6
+                }
+
+                onClicked: {
+                    board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                }
+            }
+        }
+    }
+
+    // Main board UI
     ColumnLayout {
         anchors.fill: parent
         spacing: 12
+        visible: board && board.boardName !== ""
 
         // Header
         Rectangle {
@@ -22,7 +112,7 @@ Rectangle {
                 spacing: 12
 
                 Text {
-                    text: "YOLO-NG"
+                    text: board ? board.boardName : "YOLO-NG"
                     font.pixelSize: 24
                     font.bold: true
                     color: "#e94560"
@@ -179,7 +269,7 @@ Rectangle {
 
     // CID display (debug)
     Rectangle {
-        visible: board && board.lastCid !== ""
+        visible: board && board.boardName !== "" && board.lastCid !== ""
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right

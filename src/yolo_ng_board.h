@@ -32,7 +32,7 @@ struct Post
 class YoloNgBoard : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QString boardName READ boardName CONSTANT)
+    Q_PROPERTY(QString boardName READ boardName NOTIFY boardNameChanged)
     Q_PROPERTY(QString boardDescription READ boardDescription CONSTANT)
     Q_PROPERTY(QVariantList posts READ posts NOTIFY postsChanged)
     Q_PROPERTY(int postCount READ postCount NOTIFY postsChanged)
@@ -42,8 +42,10 @@ public:
     ~YoloNgBoard() override;
 
     // Board metadata
-    QString boardName() const { return QStringLiteral("YOLO-NG"); }
+    QString boardName() const { return m_boardName; }
     QString boardDescription() const { return QStringLiteral("Anonymous text board"); }
+
+    Q_INVOKABLE void setBoard(const QString& name, const QString& secret);
 
     // Post management
     QVariantList posts() const;
@@ -69,6 +71,7 @@ signals:
     void postCreated(const QString& postId);
     void postDeleted(const QString& postId);
     void errorOccurred(const QString& message);
+    void boardNameChanged();
 
 private:
     QString generatePostId();
@@ -81,6 +84,9 @@ private:
 
     QVector<Post> m_posts;
     int m_nextPostId = 1;
+    QString m_boardName;
+    QString m_signingKeyHex;
+    QString m_checkpointPath;
 
 #ifdef LOGOS_CORE_AVAILABLE
     void* m_kv = nullptr;
