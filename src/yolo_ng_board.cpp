@@ -191,7 +191,7 @@ void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
     }
 
     static const QString signingKey =
-        QStringLiteral("0151f7d1d029b6c40390f45640006430978940f1af9267c9a831d17b75a7bf27");
+        QStringLiteral("44f3f101ef8e33fd9069159dcc689835259f5aaff6b30ff130b11911c8ea93b6");
     static const QString nodeUrl =
         QStringLiteral("http://192.168.0.209:8080");
     static const QString checkpointPath =
