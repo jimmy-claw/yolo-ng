@@ -49,6 +49,7 @@ YoloNgBoard::~YoloNgBoard()
 
 void YoloNgBoard::initLogos(LogosAPI* api)
 {
+    m_logosAPI = api;
     if (!api) {
         qWarning() << "YoloNgBoard: initLogos called with null LogosAPI";
         return;
@@ -179,6 +180,11 @@ Post* YoloNgBoard::findPost(const QString& id)
 
 void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
 {
+    // Retry getting client if not available yet (module may not be loaded at initLogos time)
+    if (!m_zoneSequencer && m_logosAPI) {
+        m_zoneSequencer = m_logosAPI->getClient("liblogos_zone_sequencer_module");
+        if (m_zoneSequencer) qInfo() << "YoloNgBoard: zone_sequencer_module client acquired on retry";
+    }
     if (!m_zoneSequencer) {
         qWarning() << "YoloNgBoard: zone sequencer client not available";
         return;

@@ -86,4 +86,5 @@ private:
     void* m_kv = nullptr;
 #endif
     LogosAPIClient* m_zoneSequencer = nullptr;
+    LogosAPI* m_logosAPI = nullptr;
 };
