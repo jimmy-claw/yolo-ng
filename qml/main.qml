@@ -26,70 +26,145 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
             }
 
-            Text {
-                text: "Enter board name and secret to connect"
-                font.pixelSize: 14
-                color: "#a0a0a0"
+            // Mode toggle
+            Row {
+                id: modeRow
                 Layout.alignment: Qt.AlignHCenter
-            }
+                spacing: 8
+                property bool createMode: true
 
-            TextField {
-                id: boardNameInput
-                Layout.fillWidth: true
-                placeholderText: "Board name"
-                color: "#ffffff"
-                font.pixelSize: 14
-                background: Rectangle {
-                    color: "#0f3460"
-                    radius: 6
+                Button {
+                    text: "Create / Post"
+                    contentItem: Text {
+                        text: parent.text
+                        color: modeRow.createMode ? "#ffffff" : "#888888"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 14
+                    }
+                    background: Rectangle {
+                        color: modeRow.createMode ? "#e94560" : "#333333"
+                        radius: 6
+                    }
+                    onClicked: modeRow.createMode = true
                 }
-                leftPadding: 12
-                rightPadding: 12
-                topPadding: 10
-                bottomPadding: 10
-            }
-
-            TextField {
-                id: boardSecretInput
-                Layout.fillWidth: true
-                placeholderText: "Secret"
-                echoMode: TextInput.Password
-                color: "#ffffff"
-                font.pixelSize: 14
-                background: Rectangle {
-                    color: "#0f3460"
-                    radius: 6
-                }
-                leftPadding: 12
-                rightPadding: 12
-                topPadding: 10
-                bottomPadding: 10
-                Keys.onReturnPressed: {
-                    if (boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0)
-                        board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                Button {
+                    text: "Follow"
+                    contentItem: Text {
+                        text: parent.text
+                        color: !modeRow.createMode ? "#ffffff" : "#888888"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 14
+                    }
+                    background: Rectangle {
+                        color: !modeRow.createMode ? "#0f3460" : "#333333"
+                        radius: 6
+                    }
+                    onClicked: modeRow.createMode = false
                 }
             }
 
-            Button {
+            // Create mode fields
+            Column {
+                visible: modeRow.createMode
+                spacing: 12
                 Layout.fillWidth: true
-                text: "Connect"
-                enabled: boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0
 
-                contentItem: Text {
-                    text: parent.text
-                    color: parent.enabled ? "#ffffff" : "#666666"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    font.pixelSize: 16
+                Text {
+                    text: "Enter board name and secret to connect"
+                    font.pixelSize: 14
+                    color: "#a0a0a0"
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
-                background: Rectangle {
-                    color: parent.enabled ? "#e94560" : "#444444"
-                    radius: 6
+                TextField {
+                    id: boardNameInput
+                    width: parent.width
+                    placeholderText: "Board name"
+                    color: "#ffffff"
+                    font.pixelSize: 14
+                    background: Rectangle { color: "#0f3460"; radius: 6 }
+                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
                 }
 
-                onClicked: {
-                    board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                TextField {
+                    id: boardSecretInput
+                    width: parent.width
+                    placeholderText: "Secret"
+                    echoMode: TextInput.Password
+                    color: "#ffffff"
+                    font.pixelSize: 14
+                    background: Rectangle { color: "#0f3460"; radius: 6 }
+                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+                    Keys.onReturnPressed: {
+                        if (boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0)
+                            board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                    }
+                }
+
+                Button {
+                    width: parent.width
+                    text: "Connect"
+                    enabled: boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.enabled ? "#ffffff" : "#666666"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 16
+                    }
+                    background: Rectangle {
+                        color: parent.enabled ? "#e94560" : "#444444"
+                        radius: 6
+                    }
+                    onClicked: board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                }
+            }
+
+            // Follow mode fields
+            Column {
+                visible: !modeRow.createMode
+                spacing: 12
+                Layout.fillWidth: true
+
+                Text {
+                    text: "Enter a channel ID to follow"
+                    font.pixelSize: 14
+                    color: "#a0a0a0"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
+                TextField {
+                    id: channelField
+                    width: parent.width
+                    placeholderText: "Channel ID (64-char hex)"
+                    color: "#ffffff"
+                    font.pixelSize: 14
+                    background: Rectangle { color: "#0f3460"; radius: 6 }
+                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+                    Keys.onReturnPressed: {
+                        if (channelField.text.trim().length === 64)
+                            board.followBoard(channelField.text.trim())
+                    }
+                }
+
+                Button {
+                    width: parent.width
+                    text: "Follow"
+                    enabled: channelField.text.trim().length === 64
+                    contentItem: Text {
+                        text: parent.text
+                        color: parent.enabled ? "#ffffff" : "#666666"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 16
+                    }
+                    background: Rectangle {
+                        color: parent.enabled ? "#0f3460" : "#444444"
+                        radius: 6
+                    }
+                    onClicked: board.followBoard(channelField.text.trim())
                 }
             }
         }
@@ -119,7 +194,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: "Text Board"
+                    text: board && board.readOnly ? "(read-only)" : "Text Board"
                     font.pixelSize: 16
                     color: "#a0a0a0"
                     anchors.verticalCenter: parent.verticalCenter
@@ -223,11 +298,12 @@ Rectangle {
                     id: postInput
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    placeholderText: "Write something..."
+                    placeholderText: board && board.readOnly ? "Read-only board" : "Write something..."
                     color: "#ffffff"
                     background: Rectangle { color: "transparent" }
                     font.pixelSize: 14
                     wrapMode: TextEdit.Wrap
+                    readOnly: board ? board.readOnly : false
                     Keys.onPressed: {
                         if (event.key === Qt.Key_Return && (event.modifiers & Qt.ControlModifier)) {
                             submitButton.clicked()
@@ -239,8 +315,8 @@ Rectangle {
                     id: submitButton
                     Layout.fillHeight: true
                     width: 100
-                    text: "Post"
-                    enabled: postInput.text.trim().length > 0
+                    text: board && board.readOnly ? "Refresh" : "Post"
+                    enabled: board && board.readOnly ? true : postInput.text.trim().length > 0
 
                     contentItem: Text {
                         text: parent.text
@@ -250,12 +326,14 @@ Rectangle {
                     }
 
                     background: Rectangle {
-                        color: parent.enabled ? "#e94560" : "#444444"
+                        color: parent.enabled ? (board && board.readOnly ? "#0f3460" : "#e94560") : "#444444"
                         radius: 6
                     }
 
                     onClicked: {
-                        if (board && postInput.text.trim().length > 0) {
+                        if (board && board.readOnly) {
+                            board.fetchPosts()
+                        } else if (board && postInput.text.trim().length > 0) {
                             var result = board.createPost("anonymous", postInput.text)
                             if (result !== "") {
                                 postInput.clear()

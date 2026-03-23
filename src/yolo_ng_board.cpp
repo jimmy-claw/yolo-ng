@@ -93,7 +93,56 @@ void YoloNgBoard::setBoard(const QString& name, const QString& secret)
     m_checkpointPath = dataDir + nameHash.toHex().left(16) + ".checkpoint";
 
     qInfo() << "YoloNgBoard: board set to" << name << "checkpoint:" << m_checkpointPath;
+    m_readOnly = false;
+    m_channelId.clear();
     emit boardNameChanged();
+}
+
+void YoloNgBoard::followBoard(const QString& channelId) {
+    m_channelId = channelId;
+    m_readOnly = true;
+    m_boardName = channelId.left(8) + "..." + channelId.right(8);
+    qInfo() << "YoloNgBoard: following channel" << channelId;
+    emit boardNameChanged();
+    fetchPosts();
+}
+
+void YoloNgBoard::fetchPosts() {
+    // Retry getting client if not available yet
+    if (!m_zoneSequencer && m_logosAPI) {
+        m_zoneSequencer = m_logosAPI->getClient("liblogos_zone_sequencer_module");
+        if (m_zoneSequencer) qInfo() << "YoloNgBoard: zone_sequencer_module client acquired on retry";
+    }
+    if (!m_zoneSequencer || m_channelId.isEmpty()) {
+        qWarning() << "YoloNgBoard: cannot fetch posts - sequencer:" << (m_zoneSequencer != nullptr) << "channelId:" << m_channelId;
+        return;
+    }
+
+    static const QString nodeUrl = QStringLiteral("http://192.168.0.209:8080");
+    m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "set_node_url", nodeUrl);
+
+    QVariant result = m_zoneSequencer->invokeRemoteMethod(
+        "liblogos_zone_sequencer_module", "query_channel",
+        m_channelId, 50);
+
+    QString json = result.toString();
+    qInfo() << "YoloNgBoard: fetchPosts got" << json.length() << "bytes";
+    if (json.isEmpty() || json == "[]") return;
+
+    QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+    if (!doc.isArray()) return;
+
+    m_posts.clear();
+    for (const QJsonValue& v : doc.array()) {
+        Post post;
+        post.id = v["id"].toString();
+        post.content = v["data"].toString();
+        post.author = QStringLiteral("unknown");
+        post.timestamp = QDateTime::currentDateTime();
+        m_posts.prepend(post);
+    }
+    emit postsChanged();
 }
 
 QVariantList YoloNgBoard::posts() const
@@ -121,6 +170,11 @@ void YoloNgBoard::refreshPosts()
 
 QString YoloNgBoard::createPost(const QString& author, const QString& content, const QString& parentId)
 {
+    if (m_readOnly) {
+        qWarning() << "YoloNgBoard: read-only board, cannot post";
+        return QString();
+    }
+
     if (content.trimmed().isEmpty()) {
         emit errorOccurred(QStringLiteral("Post content cannot be empty"));
         return QString();
