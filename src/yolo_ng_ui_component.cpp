@@ -20,7 +20,7 @@ QWidget* YoloNgUIComponent::createWidget(LogosAPI* logosAPI) {
     }
 #endif
 
-    quickWidget->rootContext()->setContextProperty("yoloNgBoard", backend);
+    quickWidget->rootContext()->setContextProperty("board", backend);
 
     quickWidget->setSource(QUrl("qrc:/yolo_ng/main.qml"));
 
