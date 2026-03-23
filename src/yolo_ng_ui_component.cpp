@@ -4,6 +4,8 @@
 #include <QQuickWidget>
 #include <QQmlContext>
 
+YoloNgUIComponent::YoloNgUIComponent(QObject *parent) : QObject(parent) {}
+
 QWidget* YoloNgUIComponent::createWidget(LogosAPI* logosAPI) {
     auto* quickWidget = new QQuickWidget();
     quickWidget->setMinimumSize(400, 500);
