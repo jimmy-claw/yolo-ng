@@ -38,6 +38,17 @@
             "-DLOGOS_LIBLOGOS_ROOT=${logosLiblogos}"
           ];
 
+          headlessBuildInputs = [
+            pkgs.qt6.qtbase
+            pkgs.qt6.qtremoteobjects
+          ];
+
+          uiBuildInputs = [
+            pkgs.qt6.qtbase
+            pkgs.qt6.qtdeclarative
+            pkgs.qt6.qtremoteobjects
+          ];
+
           headless-plugin = pkgs.stdenv.mkDerivation {
             pname = "yolo_ng-plugin";
             version = "0.1.0";
@@ -47,12 +58,10 @@
               pkgs.cmake
               pkgs.ninja
               pkgs.pkg-config
+              pkgs.patchelf
             ];
 
-            buildInputs = [
-              pkgs.qt6.qtbase
-              pkgs.qt6.qtremoteobjects
-            ];
+            buildInputs = headlessBuildInputs;
 
             cmakeFlags = commonCmakeFlags ++ [
               "-DBUILD_MODULE=ON"
@@ -73,6 +82,12 @@
               runHook postInstall
             '';
 
+            postFixup = ''
+              for f in $out/lib/*.so; do
+                patchelf --set-rpath "${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
+              done
+            '';
+
             dontWrapQtApps = true;
           };
 
@@ -86,6 +101,7 @@
               pkgs.ninja
               pkgs.pkg-config
               pkgs.qt6.wrapQtAppsHook
+              pkgs.patchelf
             ];
 
             configureFlags = [
@@ -94,11 +110,7 @@
               "-DBUILD_UI_PLUGIN=ON"
             ];
 
-            buildInputs = [
-              pkgs.qt6.qtbase
-              pkgs.qt6.qtdeclarative
-              pkgs.qt6.qtremoteobjects
-            ];
+            buildInputs = uiBuildInputs;
 
             cmakeFlags = commonCmakeFlags ++ [
               "-DBUILD_UI_PLUGIN=ON"
@@ -115,6 +127,12 @@
               mkdir -p $out/lib
               cp libyolo_ng_ui${pkgs.stdenv.hostPlatform.extensions.sharedLibrary} $out/lib/
               runHook postInstall
+            '';
+
+            postFixup = ''
+              for f in $out/lib/*.so; do
+                patchelf --set-rpath "${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
+              done
             '';
 
             dontWrapQtApps = true;
