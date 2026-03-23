@@ -38,6 +38,7 @@ class YoloNgBoard : public QObject
     Q_PROPERTY(int postCount READ postCount NOTIFY postsChanged)
     Q_PROPERTY(QString channelId READ channelId NOTIFY boardNameChanged)
     Q_PROPERTY(bool readOnly READ readOnly NOTIFY boardNameChanged)
+    Q_PROPERTY(bool isConfigured READ isConfigured NOTIFY boardNameChanged)
 
 public:
     explicit YoloNgBoard(QObject* parent = nullptr);
@@ -48,6 +49,7 @@ public:
     QString boardDescription() const { return QStringLiteral("Anonymous text board"); }
     QString channelId() const { return m_channelId; }
     bool readOnly() const { return m_readOnly; }
+    bool isConfigured() const { return !m_boardName.isEmpty(); }
 
     Q_INVOKABLE void setBoard(const QString& name, const QString& secret);
     Q_INVOKABLE void followBoard(const QString& channelId);

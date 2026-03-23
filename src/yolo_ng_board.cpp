@@ -29,6 +29,27 @@ YoloNgBoard::YoloNgBoard(QObject* parent)
         }
     }
     qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
+
+    // Restore saved board name+secret from KV
+    if (m_kv) {
+        void* libself2 = dlopen(nullptr, RTLD_NOW);
+        auto kv_get = libself2 ? (bool(*)(void*,const char*,char**))dlsym(libself2, "logos_kv_get") : nullptr;
+        auto kv_free = libself2 ? (void(*)(char*))dlsym(libself2, "logos_kv_free") : nullptr;
+        if (libself2) dlclose(libself2);
+
+        char* savedName = nullptr;
+        char* savedSecret = nullptr;
+        bool hasName = kv_get && kv_get(m_kv, "yolo_ng_board_name", &savedName) && savedName;
+        bool hasSecret = kv_get && kv_get(m_kv, "yolo_ng_board_secret", &savedSecret) && savedSecret;
+        if (hasName && hasSecret) {
+            QString name = QString::fromUtf8(savedName);
+            QString secret = QString::fromUtf8(savedSecret);
+            qInfo() << "YoloNgBoard: restoring saved board" << name;
+            setBoard(name, secret);
+        }
+        if (savedName && kv_free) kv_free(savedName);
+        if (savedSecret && kv_free) kv_free(savedSecret);
+    }
 #endif
 
     loadPosts();
@@ -95,6 +116,21 @@ void YoloNgBoard::setBoard(const QString& name, const QString& secret)
     qInfo() << "YoloNgBoard: board set to" << name << "checkpoint:" << m_checkpointPath;
     m_readOnly = false;
     m_channelId.clear();
+
+#ifdef LOGOS_CORE_AVAILABLE
+    // Persist board name+secret to KV
+    if (m_kv) {
+        void* libself = dlopen(nullptr, RTLD_NOW);
+        auto kv_put = libself ? (bool(*)(void*,const char*,const char*))dlsym(libself, "logos_kv_put") : nullptr;
+        if (libself) dlclose(libself);
+        if (kv_put) {
+            kv_put(m_kv, "yolo_ng_board_name", name.toUtf8().constData());
+            kv_put(m_kv, "yolo_ng_board_secret", secret.toUtf8().constData());
+            qDebug() << "YoloNgBoard: saved board name+secret to KV";
+        }
+    }
+#endif
+
     emit boardNameChanged();
 }
 
