@@ -1,4 +1,5 @@
 #include "yolo_ng_board.h"
+#include <dlfcn.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -14,9 +15,16 @@ YoloNgBoard::YoloNgBoard(QObject* parent)
     qDebug() << "YoloNgBoard: Created";
 
 #ifdef LOGOS_CORE_AVAILABLE
-    // Try to get KV interface from Logos core
-    extern void* logos_core_get_kv_interface();
-    m_kv = logos_core_get_kv_interface();
+    // Try to get KV interface from Logos core via dlsym (optional)
+    {
+        void* sym = nullptr;
+        void* self = dlopen(nullptr, RTLD_NOW);
+        if (self) { sym = dlsym(self, "logos_core_get_kv_interface"); dlclose(self); }
+        if (sym) {
+            auto fn = reinterpret_cast<void*(*)()>(sym);
+            m_kv = fn();
+        }
+    }
     qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
 #endif
 
@@ -47,8 +55,14 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     }
 
 #ifdef LOGOS_CORE_AVAILABLE
-    extern void* logos_core_get_kv_interface();
-    m_kv = logos_core_get_kv_interface();
+    {
+        void* self = dlopen(nullptr, RTLD_NOW);
+        if (self) {
+            auto sym = dlsym(self, "logos_core_get_kv_interface");
+            if (sym) { auto fn = reinterpret_cast<void*(*)()>(sym); m_kv = fn(); }
+            dlclose(self);
+        }
+    }
     qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
 #endif
 

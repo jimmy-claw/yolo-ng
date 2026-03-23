@@ -158,8 +158,8 @@ if(BUILD_UI_PLUGIN)
             logos_core
             ${LOGOS_SDK_LIB}
         )
-        # NOTE: Do NOT define LOGOS_CORE_AVAILABLE for UI — it cannot access logos_core_get_kv_interface
-        # target_compile_definitions(${UI_TARGET} PRIVATE LOGOS_CORE_AVAILABLE)
+        target_compile_definitions(${UI_TARGET} PRIVATE LOGOS_CORE_AVAILABLE)
+        target_link_libraries(${UI_TARGET} PRIVATE dl)
     endif()
 
     if(APPLE)
