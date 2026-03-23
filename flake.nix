@@ -85,7 +85,7 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "/tmp/logos-liblogos-merged/lib:${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "${logosLiblogos}/lib:${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
               done
             '';
 
@@ -132,7 +132,7 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "/tmp/logos-liblogos-merged/lib:${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "${logosLiblogos}/lib:${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
               done
             '';
 
