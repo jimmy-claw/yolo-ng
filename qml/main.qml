@@ -183,7 +183,9 @@ Rectangle {
             color: "#16213e"
 
             RowLayout {
-                anchors.centerIn: parent
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
                 spacing: 12
 
                 Text {
@@ -197,7 +199,23 @@ Rectangle {
                     text: board && board.readOnly ? "(read-only)" : "Text Board"
                     font.pixelSize: 16
                     color: "#a0a0a0"
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "\u21bb"
+                    font.pixelSize: 20
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#a0a0a0"
+                        font.pixelSize: 20
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle { color: "transparent" }
+                    onClicked: board.refreshPosts()
                 }
             }
         }
