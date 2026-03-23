@@ -330,9 +330,11 @@ void YoloNgBoard::handleRequest(const QString& method, const QVariantMap& params
     }
 
     if (callback) {
-        extern void logos_request_complete(void* callback, const char* result);
+        void* libself3 = dlopen(nullptr, RTLD_NOW);
+        auto req_complete = libself3 ? (void(*)(void*,const char*))dlsym(libself3, "logos_request_complete") : nullptr;
+        if (libself3) dlclose(libself3);
         QJsonDocument doc(QJsonObject::fromVariantMap(response));
-        logos_request_complete(callback, doc.toJson(QJsonDocument::Compact).constData());
+        if (req_complete) req_complete(callback, doc.toJson(QJsonDocument::Compact).constData());
     }
 }
 
