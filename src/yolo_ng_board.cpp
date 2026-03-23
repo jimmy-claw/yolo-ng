@@ -171,11 +171,11 @@ void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
     }
 
     static const QString signingKey =
-        QStringLiteral("67471408511008750378440791c53a082c6ee1141cd4bdf40699b7e44764126b");
+        QStringLiteral("0151f7d1d029b6c40390f45640006430978940f1af9267c9a831d17b75a7bf27");
     static const QString nodeUrl =
         QStringLiteral("http://192.168.0.209:8080");
     static const QString checkpointPath =
-        QStringLiteral("/tmp/yolo_ng_sequencer.checkpoint");
+        QStringLiteral("/tmp/yolo-ng-demo.checkpoint");
 
     // Configure the zone sequencer (idempotent)
     m_zoneSequencer->invokeRemoteMethod(
