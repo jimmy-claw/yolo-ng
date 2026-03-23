@@ -5,9 +5,11 @@
     "author": "jimmy-claw",
     "type": "ui",
     "category": "social",
-    "dependencies": ["yolo_ng"],
+    "dependencies": [],
     "main": {
-        "linux-amd64": "libyolo_ng_ui.so"
+        "linux-x86_64": "yolo_ng_ui.so",
+        "linux-amd64": "yolo_ng_ui.so",
+        "linux-aarch64": "yolo_ng_ui.so"
     },
     "manifestVersion": "0.1.0"
 }

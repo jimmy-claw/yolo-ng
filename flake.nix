@@ -85,7 +85,7 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "/tmp/logos-liblogos-merged/lib:${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
               done
             '';
 
@@ -132,37 +132,48 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "/tmp/logos-liblogos-merged/lib:${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
               done
             '';
 
             dontWrapQtApps = true;
           };
 
-          lgx = pkgs.runCommand "yolo-ng.lgx" {} ''
+          lgx = pkgs.runCommand "yolo-ng.lgx" {
+            nativeBuildInputs = [ pkgs.gnutar ];
+          } ''
+            staging=$(mktemp -d)
+
+            # Headless module
+            mkdir -p $staging/modules/yolo_ng
+            cp ${headless-plugin}/lib/yolo_ng_plugin.so $staging/modules/yolo_ng/yolo_ng_plugin.so
+            cp ${./manifest.json} $staging/modules/yolo_ng/manifest.json
+
+            # UI plugin (rename lib prefix off)
+            mkdir -p $staging/plugins/yolo_ng_ui
+            cp ${ui-plugin}/lib/libyolo_ng_ui.so $staging/plugins/yolo_ng_ui/yolo_ng_ui.so
+            cp ${./ui_metadata.json} $staging/plugins/yolo_ng_ui/manifest.json
+            cp -r ${./qml} $staging/plugins/yolo_ng_ui/qml
+
+            # Install script
+            cat > $staging/install.sh <<'INSTALL'
+            #!/usr/bin/env bash
+            set -e
+            SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+            LOGOS_DIR="''${LOGOS_DIR:-$HOME/.local/share/Logos/LogosAppNix}"
+            echo "Installing yolo-ng to $LOGOS_DIR..."
+            install -Dm755 "$SCRIPT_DIR/modules/yolo_ng/yolo_ng_plugin.so" "$LOGOS_DIR/modules/yolo_ng/yolo_ng_plugin.so"
+            install -Dm644 "$SCRIPT_DIR/modules/yolo_ng/manifest.json" "$LOGOS_DIR/modules/yolo_ng/manifest.json"
+            install -Dm755 "$SCRIPT_DIR/plugins/yolo_ng_ui/yolo_ng_ui.so" "$LOGOS_DIR/plugins/yolo_ng_ui/yolo_ng_ui.so"
+            install -Dm644 "$SCRIPT_DIR/plugins/yolo_ng_ui/manifest.json" "$LOGOS_DIR/plugins/yolo_ng_ui/manifest.json"
+            cp -rf "$SCRIPT_DIR/plugins/yolo_ng_ui/qml" "$LOGOS_DIR/plugins/yolo_ng_ui/"
+            echo "Done. Restart LogosApp to load yolo-ng."
+            INSTALL
+            chmod +x $staging/install.sh
+
+            # Package as gzipped tarball
             mkdir -p $out
-
-            # Root manifest
-            cat > $out/manifest.json <<'ROOTMANIFEST'
-            {"name":"yolo_ng","version":"0.1.0","type":"core","manifestVersion":"0.1.0","variants":["linux-x86_64"]}
-            ROOTMANIFEST
-
-            # Variant directory
-            mkdir -p $out/variants/linux-x86_64/qml
-
-            # Headless module plugin
-            cp ${headless-plugin}/lib/yolo_ng_plugin* $out/variants/linux-x86_64/ 2>/dev/null || true
-
-            # UI plugin
-            cp ${ui-plugin}/lib/libyolo_ng_ui* $out/variants/linux-x86_64/ 2>/dev/null || true
-
-            # QML files
-            cp -r ${./qml}/* $out/variants/linux-x86_64/qml/
-
-            # Metadata
-            cp ${./metadata.json} $out/variants/linux-x86_64/metadata.json
-            cp ${./manifest.json} $out/variants/linux-x86_64/manifest.json
-            cp ${./ui_metadata.json} $out/variants/linux-x86_64/ui_metadata.json
+            tar czf $out/yolo-ng.lgx -C $staging .
           '';
 
         in
