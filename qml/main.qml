@@ -6,7 +6,6 @@ Rectangle {
     id: root
     color: "#1a1a2e"
 
-    property var board: null
 
     ColumnLayout {
         anchors.fill: parent
