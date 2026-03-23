@@ -225,14 +225,17 @@ bool YoloNgBoard::loadPosts()
         return false;
     }
 
-    extern bool logos_kv_get(void* kv, const char* key, char** value);
-    extern void logos_kv_free(char* value);
+    // KV functions via dlsym
+    void* libself = dlopen(nullptr, RTLD_NOW);
+    auto kv_get = libself ? (bool(*)(void*,const char*,char**))dlsym(libself, "logos_kv_get") : nullptr;
+    auto kv_free = libself ? (void(*)(char*))dlsym(libself, "logos_kv_free") : nullptr;
+    if (libself) dlclose(libself);
 
     char* data = nullptr;
-    if (logos_kv_get(m_kv, "yolo_ng_posts", &data) && data) {
+    if (kv_get && kv_get(m_kv, "yolo_ng_posts", &data) && data) {
         QJsonParseError error;
         QJsonDocument doc = QJsonDocument::fromJson(QByteArray(data), &error);
-        logos_kv_free(data);
+        if (kv_free) kv_free(data);
 
         if (error.error == QJsonParseError::NoError && doc.isArray()) {
             m_posts.clear();
@@ -266,7 +269,9 @@ bool YoloNgBoard::savePosts()
         return false;
     }
 
-    extern bool logos_kv_put(void* kv, const char* key, const char* value);
+    void* libself2 = dlopen(nullptr, RTLD_NOW);
+    auto kv_put = libself2 ? (bool(*)(void*,const char*,const char*))dlsym(libself2, "logos_kv_put") : nullptr;
+    if (libself2) dlclose(libself2);
 
     QJsonArray array;
     for (const auto& post : m_posts) {
@@ -282,7 +287,7 @@ bool YoloNgBoard::savePosts()
     }
 
     QJsonDocument doc(array);
-    logos_kv_put(m_kv, "yolo_ng_posts", doc.toJson(QJsonDocument::Compact).constData());
+    if (kv_put) kv_put(m_kv, "yolo_ng_posts", doc.toJson(QJsonDocument::Compact).constData());
     qDebug() << "YoloNgBoard: Saved" << m_posts.size() << "posts to storage";
     return true;
 #else
