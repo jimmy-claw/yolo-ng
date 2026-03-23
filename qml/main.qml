@@ -135,7 +135,6 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     placeholderText: "Write something..."
-                    placeholderColor: "#666666"
                     color: "#ffffff"
                     background: Rectangle { color: "transparent" }
                     font.pixelSize: 14
