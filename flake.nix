@@ -85,7 +85,7 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "${logosLiblogos}/lib:${pkgs.lib.makeLibraryPath headlessBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "/nix/store/agvpq5n8vcqwnkmn8bp8rlczy3fdxm6n-qtdeclarative-6.9.2/lib:/nix/store/r2cq6la02msp6kfcl9a17d2l2n96qpvs-qtremoteobjects-6.9.2/lib:/tmp/logos-liblogos-merged/lib:/nix/store/dkfr32yi7p8cdxsnll05q1kax19fl7ay-qtbase-6.9.2/lib" "$f"
               done
             '';
 
@@ -132,7 +132,7 @@
 
             postFixup = ''
               for f in $out/lib/*.so; do
-                patchelf --set-rpath "${logosLiblogos}/lib:${pkgs.lib.makeLibraryPath uiBuildInputs}:\$ORIGIN" "$f"
+                patchelf --set-rpath "/nix/store/agvpq5n8vcqwnkmn8bp8rlczy3fdxm6n-qtdeclarative-6.9.2/lib:/nix/store/r2cq6la02msp6kfcl9a17d2l2n96qpvs-qtremoteobjects-6.9.2/lib:/tmp/logos-liblogos-merged/lib:/nix/store/dkfr32yi7p8cdxsnll05q1kax19fl7ay-qtbase-6.9.2/lib" "$f"
               done
             '';
 
