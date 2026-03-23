@@ -6,8 +6,7 @@
     "type": "ui",
     "category": "social",
     "dependencies": [
-        "yolo_ng",
-        "liblogos_zone_sequencer_module"
+        "yolo_ng"
     ],
     "main": {
         "linux-x86_64": "yolo_ng_ui.so",
