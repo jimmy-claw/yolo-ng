@@ -1,72 +1,110 @@
 # yolo-ng
 
-A Logos Core module for posting text inscriptions on the Logos blockchain (devnet).
+A decentralized text board running as a Logos Core module. Users create named boards with a secret, post text, and every post is permanently inscribed on the Logos blockchain (devnet).
 
-## What it does
+## Demo
 
-yolo-ng lets users post short text messages that get inscribed on the Logos blockchain via the zone-sdk. Each post is permanently recorded on-chain.
+![yolo-ng posts on devnet explorer](https://devnet.blockchain.logos.co/web/explorer/transactions/75cf4647a9dd1359bab4b2866e23702a1fe10a75a0a5709fa566fa8be402584f)
 
-## Architecture
+- TX 1: https://devnet.blockchain.logos.co/web/explorer/transactions/75cf4647a9dd1359bab4b2866e23702a1fe10a75a0a5709fa566fa8be402584f
+- TX 2: https://devnet.blockchain.logos.co/web/explorer/transactions/edf4036df19c5e751e3c4b4f2386581c9bc291f5328446dcbdf5bfb75f97c5ea
+
+## How it works
 
 ```
-yolo-ng UI (QML)
+LogosApp UI
     ↓
-yolo-ng headless plugin (C++ Qt)
+yolo-ng headless module (C++ Qt)
     ↓ invokeRemoteMethod (QtRO)
 logos-zone-sequencer-module
-    ↓ FFI
+    ↓ C FFI
 zone-sequencer-rs (Rust + zone-sdk)
     ↓ HTTP
 Logos blockchain node → devnet
 ```
 
-## Dependencies
+### Board identity
 
-- [logos-zone-sequencer-module](https://github.com/jimmy-claw/logos-zone-sequencer-module) — Logos Core Qt plugin for zone inscription
-- [zone-sequencer-rs](https://github.com/jimmy-claw/zone-sequencer-rs) — Rust FFI library wrapping zone-sdk
+Each board is identified by a **name** + **secret**:
+
+```
+signing_key = SHA256(name + ":" + secret)  →  Ed25519 seed
+channel_id  = signing_key.public_key()     →  32-byte channel identifier
+checkpoint  = ~/.local/share/yolo-ng/<hash>.checkpoint
+```
+
+Two users with the same name + secret post to the same channel. Different secret = different channel. No key management needed.
 
 ## Installation
 
-Download the bundle from crib and install:
+### Prerequisites
+
+- LogosApp (Nix) installed
+- [logos-zone-sequencer-module](https://github.com/jimmy-claw/logos-zone-sequencer-module) installed
+
+### Install yolo-ng
 
 ```bash
-tar xzf yolo-ng-v2.tar.gz -C /tmp
-bash /tmp/yolo-bundle/install.sh
+# Download latest release (includes zone-sequencer-module)
+curl -L https://github.com/jimmy-claw/yolo-ng/releases/latest/download/yolo-ng.tar.gz -o /tmp/yolo-ng.tar.gz
+tar xzf /tmp/yolo-ng.tar.gz -C /tmp/yolo-ng-install
+bash /tmp/yolo-ng-install/install.sh
 ```
 
-The bundle includes:
-- `yolo-ng.lgx` — yolo-ng Logos module
-- `liblogos_zone_sequencer_module.so` — zone sequencer Qt plugin
-- `libzone_sequencer_rs.so` — Rust FFI library
-- `yolo-ng-demo.checkpoint` — pre-seeded checkpoint for the demo channel
+Or manually:
+```bash
+LOGOS_DIR=~/.local/share/Logos/LogosAppNix
 
-## Channel & Keys
+# Headless module
+cp yolo_ng_plugin.so $LOGOS_DIR/modules/yolo_ng/
+cp modules/yolo_ng/manifest.json $LOGOS_DIR/modules/yolo_ng/
 
-yolo-ng uses a deterministic signing key derived from the channel name:
+# UI plugin
+cp yolo_ng_ui.so $LOGOS_DIR/plugins/yolo_ng_ui/
+cp plugins/yolo_ng_ui/manifest.json $LOGOS_DIR/plugins/yolo_ng_ui/
+cp -r qml/ $LOGOS_DIR/plugins/yolo_ng_ui/
 
+# Zone sequencer module
+cp liblogos_zone_sequencer_module.so $LOGOS_DIR/modules/zone_sequencer_module/
+cp libzone_sequencer_rs.so $LOGOS_DIR/modules/zone_sequencer_module/
+cp zone_sequencer_module/manifest.json $LOGOS_DIR/modules/zone_sequencer_module/
 ```
-channel name: "yolo-ng-demo"
-signing key:  SHA256("yolo-ng-demo") = 0151f7d1d029b6c40390f45640006430978940f1af9267c9a831d17b75a7bf27
-channel id:   86998c9581ec65d811a88d7edef6adff9daa9b14cd90c2bd20e89b09bc871954 (pubkey of signing key)
-```
 
-Channel on devnet: `86998c9581ec65d811a88d7edef6adff9daa9b14cd90c2bd20e89b09bc871954`
+### Load in LogosApp
 
-## Checkpoint
+1. Open LogosApp
+2. Go to Basecamp → load `liblogos_zone_sequencer_module`
+3. Open yolo-ng from the app launcher
 
-The zone-sdk requires a checkpoint for chain continuity — without it, inscriptions are rejected by validators. The checkpoint is stored at `/tmp/yolo-ng-demo.checkpoint` and updated automatically after each successful post.
+## Usage
 
-The bundle ships a pre-seeded checkpoint. If lost, the channel must be re-bootstrapped by running `logos-blockchain-node inscribe` once with the same key.
+1. Enter a **board name** and **secret** → click Connect
+2. Type a post → click Post
+3. Post is stored locally and inscribed on the Logos blockchain
+
+The first post on a new board creates the channel. Subsequent posts chain off the previous inscription via checkpoint.
 
 ## Building
 
 ```bash
-nix build .#headless-plugin   # headless C++ plugin
-nix build .#lgx               # full .lgx bundle
+# Build everything
+nix build .#lgx        # → result/yolo-ng.lgx (full bundle)
+nix build .#headless-plugin  # → headless .so only
+nix build .#ui-plugin        # → UI .so only
 ```
 
-## Repos
+Requires nixpkgs `e9f00bd8` (Qt 6.9.2).
 
-- yolo-ng: https://github.com/jimmy-claw/yolo-ng
-- zone sequencer module: https://github.com/jimmy-claw/logos-zone-sequencer-module
-- zone sequencer Rust FFI: https://github.com/jimmy-claw/zone-sequencer-rs
+## Dependencies
+
+| Module | Repo | Purpose |
+|--------|------|---------|
+| logos-zone-sequencer-module | [jimmy-claw/logos-zone-sequencer-module](https://github.com/jimmy-claw/logos-zone-sequencer-module) | Zone inscription Qt plugin |
+| zone-sequencer-rs | [jimmy-claw/zone-sequencer-rs](https://github.com/jimmy-claw/zone-sequencer-rs) | Rust FFI wrapping zone-sdk |
+| kv_module | logos-co/logos-kv-module | Local post storage |
+
+## Known limitations
+
+- `liblogos_zone_sequencer_module` must be manually loaded in LogosApp before using yolo-ng (dependency auto-loading not yet working)
+- Node URL is hardcoded to Pi5 (`192.168.0.209:8080`) — configurable node support coming
+- No post reading from chain yet (ZoneIndexer not implemented) — posts only visible locally after fresh install
