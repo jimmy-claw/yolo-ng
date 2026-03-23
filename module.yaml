@@ -4,6 +4,5 @@ type: module
 category: social
 description: YOLO-NG Text Board Miniapp
 dependencies:
-  - blockchain_module
   - kv_module
-  - storage_module
+  - liblogos_zone_sequencer_module

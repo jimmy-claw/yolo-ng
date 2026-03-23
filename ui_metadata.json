@@ -5,7 +5,10 @@
     "author": "jimmy-claw",
     "type": "ui",
     "category": "social",
-    "dependencies": [],
+    "dependencies": [
+        "yolo_ng",
+        "liblogos_zone_sequencer_module"
+    ],
     "main": {
         "linux-x86_64": "yolo_ng_ui.so",
         "linux-amd64": "yolo_ng_ui.so",
