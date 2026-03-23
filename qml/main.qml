@@ -6,9 +6,307 @@ Rectangle {
     id: root
     color: "#1a1a2e"
 
-    // Board setup screen
+    // State: "selector" = board list, "setup" = create/follow board, "board" = viewing a board
+    property string viewState: board && board.boardName !== "" ? "board" : "selector"
+
+    // ── Board Selector Screen ─────────────────────────────────────────────────
     Rectangle {
-        visible: !board || board.boardName === ""
+        visible: viewState === "selector"
+        anchors.fill: parent
+        color: "#1a1a2e"
+        z: 1
+
+        Flickable {
+            anchors.fill: parent
+            anchors.margins: 16
+            contentHeight: selectorColumn.height
+            clip: true
+
+            ColumnLayout {
+                id: selectorColumn
+                width: parent.width
+                spacing: 16
+
+                // Title
+                Text {
+                    text: "YOLO-NG"
+                    font.pixelSize: 32
+                    font.bold: true
+                    color: "#e94560"
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                // ── My Boards section ──
+                Text {
+                    text: "My Boards"
+                    font.pixelSize: 18
+                    font.bold: true
+                    color: "#ffffff"
+                    Layout.topMargin: 8
+                }
+
+                Repeater {
+                    model: board ? board.myBoards() : []
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 56
+                        color: "#0f3460"
+                        radius: 8
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    text: modelData.name
+                                    color: "#ffffff"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                }
+                                Text {
+                                    text: modelData.channelId || ""
+                                    color: "#888888"
+                                    font.pixelSize: 11
+                                    elide: Text.ElideMiddle
+                                    width: parent.width
+                                }
+                            }
+
+                            Button {
+                                text: "Open"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ffffff"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 13
+                                }
+                                background: Rectangle {
+                                    color: "#e94560"
+                                    radius: 4
+                                    implicitWidth: 60
+                                    implicitHeight: 32
+                                }
+                                onClicked: {
+                                    board.switchToBoard(modelData.name)
+                                    viewState = "board"
+                                }
+                            }
+
+                            Button {
+                                text: "\u2715"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ff6666"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 16
+                                }
+                                background: Rectangle { color: "transparent"; implicitWidth: 32; implicitHeight: 32 }
+                                onClicked: board.removeBoard(modelData.name)
+                            }
+                        }
+                    }
+                }
+
+                // Empty state for my boards
+                Text {
+                    visible: !board || board.myBoards().length === 0
+                    text: "No boards yet. Create one below."
+                    color: "#666666"
+                    font.pixelSize: 14
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                Button {
+                    Layout.fillWidth: true
+                    text: "+ Create New Board"
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#ffffff"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: 15
+                    }
+                    background: Rectangle {
+                        color: "#e94560"
+                        radius: 6
+                        implicitHeight: 44
+                    }
+                    onClicked: {
+                        setupMode = "create"
+                        viewState = "setup"
+                    }
+                }
+
+                // ── Following section ──
+                Text {
+                    text: "Following"
+                    font.pixelSize: 18
+                    font.bold: true
+                    color: "#ffffff"
+                    Layout.topMargin: 16
+                }
+
+                Repeater {
+                    model: board ? board.followingChannels() : []
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 56
+                        color: "#16213e"
+                        radius: 8
+                        border.color: "#0f3460"
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
+
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    text: modelData.name || "Unknown"
+                                    color: "#ffffff"
+                                    font.pixelSize: 15
+                                    font.bold: true
+                                }
+                                Text {
+                                    text: modelData.channelId || ""
+                                    color: "#888888"
+                                    font.pixelSize: 11
+                                    elide: Text.ElideMiddle
+                                    width: parent.width
+                                }
+                            }
+
+                            Button {
+                                text: "Open"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ffffff"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 13
+                                }
+                                background: Rectangle {
+                                    color: "#0f3460"
+                                    radius: 4
+                                    implicitWidth: 60
+                                    implicitHeight: 32
+                                }
+                                onClicked: {
+                                    board.followBoard(modelData.channelId)
+                                    viewState = "board"
+                                }
+                            }
+
+                            Button {
+                                text: "\u2715"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ff6666"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 16
+                                }
+                                background: Rectangle { color: "transparent"; implicitWidth: 32; implicitHeight: 32 }
+                                onClicked: board.unfollowBoard(modelData.channelId)
+                            }
+                        }
+                    }
+                }
+
+                // Empty state for following
+                Text {
+                    visible: !board || board.followingChannels().length === 0
+                    text: "Not following any boards yet."
+                    color: "#666666"
+                    font.pixelSize: 14
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                // Follow by channel ID inline
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: followCol.height + 24
+                    color: "#16213e"
+                    radius: 8
+                    Layout.topMargin: 8
+
+                    Column {
+                        id: followCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        spacing: 8
+
+                        Text {
+                            text: "Follow a board by channel ID"
+                            color: "#a0a0a0"
+                            font.pixelSize: 13
+                        }
+
+                        TextField {
+                            id: selectorChannelField
+                            width: parent.width
+                            placeholderText: "Channel ID (64-char hex)"
+                            color: "#ffffff"
+                            font.pixelSize: 14
+                            background: Rectangle { color: "#0f3460"; radius: 6 }
+                            leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+                            Keys.onReturnPressed: {
+                                if (selectorChannelField.text.trim().length === 64) {
+                                    board.followBoard(selectorChannelField.text.trim())
+                                    selectorChannelField.clear()
+                                    viewState = "board"
+                                }
+                            }
+                        }
+
+                        Button {
+                            width: parent.width
+                            text: "Follow"
+                            enabled: selectorChannelField.text.trim().length === 64
+                            contentItem: Text {
+                                text: parent.text
+                                color: parent.enabled ? "#ffffff" : "#666666"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                font.pixelSize: 14
+                            }
+                            background: Rectangle {
+                                color: parent.enabled ? "#0f3460" : "#444444"
+                                radius: 6
+                                implicitHeight: 40
+                            }
+                            onClicked: {
+                                board.followBoard(selectorChannelField.text.trim())
+                                selectorChannelField.clear()
+                                viewState = "board"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Board Setup Screen (Create new board) ─────────────────────────────────
+    property string setupMode: "create"
+
+    Rectangle {
+        visible: viewState === "setup"
         anchors.fill: parent
         color: "#1a1a2e"
         z: 1
@@ -26,155 +324,87 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
             }
 
-            // Mode toggle
-            Row {
-                id: modeRow
+            // Back button
+            Button {
+                text: "\u2190 Back to boards"
+                contentItem: Text {
+                    text: parent.text
+                    color: "#a0a0a0"
+                    font.pixelSize: 14
+                }
+                background: Rectangle { color: "transparent" }
+                onClicked: viewState = "selector"
+            }
+
+            Text {
+                text: "Create a new board"
+                font.pixelSize: 16
+                color: "#ffffff"
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 8
-                property bool createMode: true
+            }
 
-                Button {
-                    text: "Create / Post"
-                    contentItem: Text {
-                        text: parent.text
-                        color: modeRow.createMode ? "#ffffff" : "#888888"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 14
+            Text {
+                text: "Enter board name and secret to connect"
+                font.pixelSize: 14
+                color: "#a0a0a0"
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            TextField {
+                id: boardNameInput
+                Layout.fillWidth: true
+                placeholderText: "Board name"
+                color: "#ffffff"
+                font.pixelSize: 14
+                background: Rectangle { color: "#0f3460"; radius: 6 }
+                leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+            }
+
+            TextField {
+                id: boardSecretInput
+                Layout.fillWidth: true
+                placeholderText: "Secret"
+                echoMode: TextInput.Password
+                color: "#ffffff"
+                font.pixelSize: 14
+                background: Rectangle { color: "#0f3460"; radius: 6 }
+                leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+                Keys.onReturnPressed: {
+                    if (boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0) {
+                        board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                        viewState = "board"
                     }
-                    background: Rectangle {
-                        color: modeRow.createMode ? "#e94560" : "#333333"
-                        radius: 6
-                    }
-                    onClicked: modeRow.createMode = true
-                }
-                Button {
-                    text: "Follow"
-                    contentItem: Text {
-                        text: parent.text
-                        color: !modeRow.createMode ? "#ffffff" : "#888888"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 14
-                    }
-                    background: Rectangle {
-                        color: !modeRow.createMode ? "#0f3460" : "#333333"
-                        radius: 6
-                    }
-                    onClicked: modeRow.createMode = false
                 }
             }
 
-            // Create mode fields
-            Column {
-                visible: modeRow.createMode
-                spacing: 12
+            Button {
                 Layout.fillWidth: true
-
-                Text {
-                    text: "Enter board name and secret to connect"
-                    font.pixelSize: 14
-                    color: "#a0a0a0"
-                    anchors.horizontalCenter: parent.horizontalCenter
+                text: "Connect"
+                enabled: boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0
+                contentItem: Text {
+                    text: parent.text
+                    color: parent.enabled ? "#ffffff" : "#666666"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: 16
                 }
-
-                TextField {
-                    id: boardNameInput
-                    width: parent.width
-                    placeholderText: "Board name"
-                    color: "#ffffff"
-                    font.pixelSize: 14
-                    background: Rectangle { color: "#0f3460"; radius: 6 }
-                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
+                background: Rectangle {
+                    color: parent.enabled ? "#e94560" : "#444444"
+                    radius: 6
                 }
-
-                TextField {
-                    id: boardSecretInput
-                    width: parent.width
-                    placeholderText: "Secret"
-                    echoMode: TextInput.Password
-                    color: "#ffffff"
-                    font.pixelSize: 14
-                    background: Rectangle { color: "#0f3460"; radius: 6 }
-                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
-                    Keys.onReturnPressed: {
-                        if (boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0)
-                            board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
-                    }
-                }
-
-                Button {
-                    width: parent.width
-                    text: "Connect"
-                    enabled: boardNameInput.text.trim().length > 0 && boardSecretInput.text.length > 0
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.enabled ? "#ffffff" : "#666666"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 16
-                    }
-                    background: Rectangle {
-                        color: parent.enabled ? "#e94560" : "#444444"
-                        radius: 6
-                    }
-                    onClicked: board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
-                }
-            }
-
-            // Follow mode fields
-            Column {
-                visible: !modeRow.createMode
-                spacing: 12
-                Layout.fillWidth: true
-
-                Text {
-                    text: "Enter a channel ID to follow"
-                    font.pixelSize: 14
-                    color: "#a0a0a0"
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-
-                TextField {
-                    id: channelField
-                    width: parent.width
-                    placeholderText: "Channel ID (64-char hex)"
-                    color: "#ffffff"
-                    font.pixelSize: 14
-                    background: Rectangle { color: "#0f3460"; radius: 6 }
-                    leftPadding: 12; rightPadding: 12; topPadding: 10; bottomPadding: 10
-                    Keys.onReturnPressed: {
-                        if (channelField.text.trim().length === 64)
-                            board.followBoard(channelField.text.trim())
-                    }
-                }
-
-                Button {
-                    width: parent.width
-                    text: "Follow"
-                    enabled: channelField.text.trim().length === 64
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.enabled ? "#ffffff" : "#666666"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 16
-                    }
-                    background: Rectangle {
-                        color: parent.enabled ? "#0f3460" : "#444444"
-                        radius: 6
-                    }
-                    onClicked: board.followBoard(channelField.text.trim())
+                onClicked: {
+                    board.setBoard(boardNameInput.text.trim(), boardSecretInput.text)
+                    viewState = "board"
                 }
             }
         }
     }
 
-    // Main board UI
+    // ── Main Board View ───────────────────────────────────────────────────────
     ColumnLayout {
         anchors.fill: parent
-        spacing: 12
-        visible: board && board.boardName !== ""
+        spacing: 0
+        visible: viewState === "board"
 
         // Header
         Rectangle {
@@ -184,25 +414,43 @@ Rectangle {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
-                spacing: 12
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 8
+
+                Button {
+                    text: "\u2190"
+                    font.pixelSize: 20
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#a0a0a0"
+                        font.pixelSize: 20
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle { color: "transparent" }
+                    onClicked: {
+                        board.disconnectBoard()
+                        viewState = "selector"
+                    }
+                }
 
                 Text {
                     text: board ? board.boardName : "YOLO-NG"
-                    font.pixelSize: 24
+                    font.pixelSize: 20
                     font.bold: true
                     color: "#e94560"
+                    elide: Text.ElideMiddle
+                    Layout.fillWidth: true
                 }
 
                 Text {
-                    text: board && board.readOnly ? "(read-only)" : "Text Board"
-                    font.pixelSize: 16
-                    color: "#a0a0a0"
+                    visible: board && board.readOnly
+                    text: "(read-only)"
+                    font.pixelSize: 13
+                    color: "#ff9944"
                     Layout.alignment: Qt.AlignVCenter
                 }
-
-                Item { Layout.fillWidth: true }
 
                 Button {
                     text: "\u21bb"
@@ -293,7 +541,9 @@ Rectangle {
 
                 Text {
                     anchors.centerIn: parent
-                    text: "No posts yet.\nBe the first to write!"
+                    text: board && board.readOnly
+                        ? "No posts fetched yet.\nTap \u21bb to refresh."
+                        : "No posts yet.\nBe the first to write!"
                     color: "#666666"
                     font.pixelSize: 16
                     horizontalAlignment: Text.AlignHCenter
@@ -301,10 +551,11 @@ Rectangle {
             }
         }
 
-        // Input area
+        // Input area (hidden for read-only boards)
         Rectangle {
             Layout.fillWidth: true
-            height: 100
+            height: board && board.readOnly ? 0 : 100
+            visible: !board || !board.readOnly
             color: "#16213e"
 
             RowLayout {
@@ -316,12 +567,11 @@ Rectangle {
                     id: postInput
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    placeholderText: board && board.readOnly ? "Read-only board" : "Write something..."
+                    placeholderText: "Write something..."
                     color: "#ffffff"
                     background: Rectangle { color: "transparent" }
                     font.pixelSize: 14
                     wrapMode: TextEdit.Wrap
-                    readOnly: board ? board.readOnly : false
                     Keys.onPressed: {
                         if (event.key === Qt.Key_Return && (event.modifiers & Qt.ControlModifier)) {
                             submitButton.clicked()
@@ -333,8 +583,8 @@ Rectangle {
                     id: submitButton
                     Layout.fillHeight: true
                     width: 100
-                    text: board && board.readOnly ? "Refresh" : "Post"
-                    enabled: board && board.readOnly ? true : postInput.text.trim().length > 0
+                    text: "Post"
+                    enabled: postInput.text.trim().length > 0
 
                     contentItem: Text {
                         text: parent.text
@@ -344,14 +594,12 @@ Rectangle {
                     }
 
                     background: Rectangle {
-                        color: parent.enabled ? (board && board.readOnly ? "#0f3460" : "#e94560") : "#444444"
+                        color: parent.enabled ? "#e94560" : "#444444"
                         radius: 6
                     }
 
                     onClicked: {
-                        if (board && board.readOnly) {
-                            board.fetchPosts()
-                        } else if (board && postInput.text.trim().length > 0) {
+                        if (board && postInput.text.trim().length > 0) {
                             var result = board.createPost("anonymous", postInput.text)
                             if (result !== "") {
                                 postInput.clear()
@@ -365,12 +613,13 @@ Rectangle {
 
     // CID display (debug)
     Rectangle {
-        visible: board && board.boardName !== "" && board.lastCid !== ""
+        visible: viewState === "board" && board && board.lastCid !== undefined && board.lastCid !== ""
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         height: 30
         color: "#0a0a0a"
+        z: 2
 
         Text {
             anchors.centerIn: parent

@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QMap>
 #include <QStandardPaths>
 #include <logos_api.h>
 #include <logos_api_client.h>
@@ -30,25 +31,19 @@ YoloNgBoard::YoloNgBoard(QObject* parent)
     }
     qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
 
-    // Restore saved board name+secret from KV
-    if (m_kv) {
-        void* libself2 = dlopen(nullptr, RTLD_NOW);
-        auto kv_get = libself2 ? (bool(*)(void*,const char*,char**))dlsym(libself2, "logos_kv_get") : nullptr;
-        auto kv_free = libself2 ? (void(*)(char*))dlsym(libself2, "logos_kv_free") : nullptr;
-        if (libself2) dlclose(libself2);
+    // Load saved board lists
+    loadMyBoards();
+    loadFollowing();
 
-        char* savedName = nullptr;
-        char* savedSecret = nullptr;
-        bool hasName = kv_get && kv_get(m_kv, "yolo_ng_board_name", &savedName) && savedName;
-        bool hasSecret = kv_get && kv_get(m_kv, "yolo_ng_board_secret", &savedSecret) && savedSecret;
-        if (hasName && hasSecret) {
-            QString name = QString::fromUtf8(savedName);
-            QString secret = QString::fromUtf8(savedSecret);
-            qInfo() << "YoloNgBoard: restoring saved board" << name;
-            setBoard(name, secret);
+    // Restore last active board name+secret from KV
+    if (m_kv) {
+        QString savedName = kvGet("yolo_ng_board_name");
+        QString savedSecret = kvGet("yolo_ng_board_secret");
+        if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
+            qInfo() << "YoloNgBoard: restoring saved board" << savedName;
+            m_boardSecrets[savedName] = savedSecret;
+            setBoard(savedName, savedSecret);
         }
-        if (savedName && kv_free) kv_free(savedName);
-        if (savedSecret && kv_free) kv_free(savedSecret);
     }
 #endif
 
@@ -101,6 +96,44 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     qInfo() << "YoloNgBoard: Logos initialized";
 }
 
+// ── KV helpers ──────────────────────────────────────────────────────────────
+
+QString YoloNgBoard::kvGet(const char* key)
+{
+#ifdef LOGOS_CORE_AVAILABLE
+    if (!m_kv) return {};
+    void* libself = dlopen(nullptr, RTLD_NOW);
+    auto kv_get = libself ? (bool(*)(void*,const char*,char**))dlsym(libself, "logos_kv_get") : nullptr;
+    auto kv_free = libself ? (void(*)(char*))dlsym(libself, "logos_kv_free") : nullptr;
+    if (libself) dlclose(libself);
+
+    char* data = nullptr;
+    if (kv_get && kv_get(m_kv, key, &data) && data) {
+        QString result = QString::fromUtf8(data);
+        if (kv_free) kv_free(data);
+        return result;
+    }
+#else
+    Q_UNUSED(key);
+#endif
+    return {};
+}
+
+void YoloNgBoard::kvPut(const char* key, const QString& value)
+{
+#ifdef LOGOS_CORE_AVAILABLE
+    if (!m_kv) return;
+    void* libself = dlopen(nullptr, RTLD_NOW);
+    auto kv_put = libself ? (bool(*)(void*,const char*,const char*))dlsym(libself, "logos_kv_put") : nullptr;
+    if (libself) dlclose(libself);
+    if (kv_put) kv_put(m_kv, key, value.toUtf8().constData());
+#else
+    Q_UNUSED(key); Q_UNUSED(value);
+#endif
+}
+
+// ── Board management ────────────────────────────────────────────────────────
+
 void YoloNgBoard::setBoard(const QString& name, const QString& secret)
 {
     QByteArray input = (name + ":" + secret).toUtf8();
@@ -117,21 +150,32 @@ void YoloNgBoard::setBoard(const QString& name, const QString& secret)
     m_readOnly = false;
     m_channelId.clear();
 
-#ifdef LOGOS_CORE_AVAILABLE
-    // Persist board name+secret to KV
-    if (m_kv) {
-        void* libself = dlopen(nullptr, RTLD_NOW);
-        auto kv_put = libself ? (bool(*)(void*,const char*,const char*))dlsym(libself, "logos_kv_put") : nullptr;
-        if (libself) dlclose(libself);
-        if (kv_put) {
-            kv_put(m_kv, "yolo_ng_board_name", name.toUtf8().constData());
-            kv_put(m_kv, "yolo_ng_board_secret", secret.toUtf8().constData());
-            qDebug() << "YoloNgBoard: saved board name+secret to KV";
+    // Cache secret in memory
+    m_boardSecrets[name] = secret;
+
+    // Persist last-active board
+    kvPut("yolo_ng_board_name", name);
+    kvPut("yolo_ng_board_secret", secret);
+
+    // Add to myBoards if not already present
+    bool found = false;
+    for (const auto& b : m_myBoards) {
+        if (b.toMap()[QStringLiteral("name")].toString() == name) {
+            found = true;
+            break;
         }
     }
-#endif
+    if (!found) {
+        QVariantMap entry;
+        entry[QStringLiteral("name")] = name;
+        entry[QStringLiteral("channelId")] = m_signingKeyHex.left(16) + "...";
+        m_myBoards.append(entry);
+        saveMyBoards();
+    }
 
     emit boardNameChanged();
+    emit isReadOnlyChanged();
+    emit boardsListChanged();
 }
 
 void YoloNgBoard::followBoard(const QString& channelId) {
@@ -139,9 +183,154 @@ void YoloNgBoard::followBoard(const QString& channelId) {
     m_readOnly = true;
     m_boardName = channelId.left(8) + "..." + channelId.right(8);
     qInfo() << "YoloNgBoard: following channel" << channelId;
+
+    // Add to following list if not already present
+    bool found = false;
+    for (const auto& f : m_following) {
+        if (f.toMap()[QStringLiteral("channelId")].toString() == channelId) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        QVariantMap entry;
+        entry[QStringLiteral("channelId")] = channelId;
+        entry[QStringLiteral("name")] = m_boardName;
+        m_following.append(entry);
+        saveFollowing();
+    }
+
     emit boardNameChanged();
+    emit isReadOnlyChanged();
+    emit boardsListChanged();
     fetchPosts();
 }
+
+void YoloNgBoard::unfollowBoard(const QString& channelId) {
+    for (int i = 0; i < m_following.size(); ++i) {
+        if (m_following[i].toMap()[QStringLiteral("channelId")].toString() == channelId) {
+            m_following.removeAt(i);
+            saveFollowing();
+            break;
+        }
+    }
+
+    // If we're currently viewing this channel, disconnect
+    if (m_channelId == channelId) {
+        disconnectBoard();
+    }
+
+    emit boardsListChanged();
+}
+
+void YoloNgBoard::disconnectBoard() {
+    m_boardName.clear();
+    m_signingKeyHex.clear();
+    m_channelId.clear();
+    m_checkpointPath.clear();
+    m_readOnly = false;
+    m_posts.clear();
+    emit boardNameChanged();
+    emit isReadOnlyChanged();
+    emit postsChanged();
+}
+
+void YoloNgBoard::switchToBoard(const QString& name) {
+    QString secret = m_boardSecrets.value(name);
+    if (secret.isEmpty()) {
+        qWarning() << "YoloNgBoard: no cached secret for board" << name;
+        m_errorMessage = QStringLiteral("No secret cached for board: ") + name;
+        emit errorOccurred(m_errorMessage);
+        return;
+    }
+    setBoard(name, secret);
+    loadPosts();
+    emit postsChanged();
+}
+
+void YoloNgBoard::removeBoard(const QString& name) {
+    for (int i = 0; i < m_myBoards.size(); ++i) {
+        if (m_myBoards[i].toMap()[QStringLiteral("name")].toString() == name) {
+            m_myBoards.removeAt(i);
+            saveMyBoards();
+            break;
+        }
+    }
+    m_boardSecrets.remove(name);
+
+    // If we're currently on this board, disconnect
+    if (m_boardName == name) {
+        disconnectBoard();
+    }
+
+    emit boardsListChanged();
+}
+
+QVariantList YoloNgBoard::myBoards() const {
+    return m_myBoards;
+}
+
+QVariantList YoloNgBoard::followingChannels() const {
+    return m_following;
+}
+
+// ── Multi-board persistence ─────────────────────────────────────────────────
+
+void YoloNgBoard::saveMyBoards() {
+    QJsonArray arr;
+    for (const auto& b : m_myBoards) {
+        QVariantMap m = b.toMap();
+        QJsonObject obj;
+        obj[QStringLiteral("name")] = m[QStringLiteral("name")].toString();
+        obj[QStringLiteral("channelId")] = m[QStringLiteral("channelId")].toString();
+        arr.append(obj);
+    }
+    kvPut("yolo_ng_my_boards", QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
+}
+
+void YoloNgBoard::loadMyBoards() {
+    QString json = kvGet("yolo_ng_my_boards");
+    if (json.isEmpty()) return;
+    QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+    if (!doc.isArray()) return;
+    m_myBoards.clear();
+    for (const auto& v : doc.array()) {
+        QVariantMap entry;
+        entry[QStringLiteral("name")] = v[QStringLiteral("name")].toString();
+        entry[QStringLiteral("channelId")] = v[QStringLiteral("channelId")].toString();
+        m_myBoards.append(entry);
+    }
+    qDebug() << "YoloNgBoard: loaded" << m_myBoards.size() << "my boards";
+}
+
+void YoloNgBoard::saveFollowing() {
+    QJsonArray arr;
+    for (const auto& f : m_following) {
+        QVariantMap m = f.toMap();
+        QJsonObject obj;
+        obj[QStringLiteral("channelId")] = m[QStringLiteral("channelId")].toString();
+        obj[QStringLiteral("name")] = m[QStringLiteral("name")].toString();
+        arr.append(obj);
+    }
+    kvPut("yolo_ng_following", QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
+}
+
+void YoloNgBoard::loadFollowing() {
+    QString json = kvGet("yolo_ng_following");
+    if (json.isEmpty()) return;
+    QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+    if (!doc.isArray()) return;
+    m_following.clear();
+    for (const auto& v : doc.array()) {
+        QVariantMap entry;
+        entry[QStringLiteral("channelId")] = v[QStringLiteral("channelId")].toString();
+        entry[QStringLiteral("name")] = v[QStringLiteral("name")].toString();
+        m_following.append(entry);
+    }
+    qDebug() << "YoloNgBoard: loaded" << m_following.size() << "following channels";
+}
+
+// ── Post fetching ───────────────────────────────────────────────────────────
 
 void YoloNgBoard::fetchPosts() {
     // Retry getting client if not available yet
@@ -181,6 +370,8 @@ void YoloNgBoard::fetchPosts() {
     emit postsChanged();
 }
 
+// ── Post management ─────────────────────────────────────────────────────────
+
 QVariantList YoloNgBoard::posts() const
 {
     QVariantList result;
@@ -200,8 +391,12 @@ QVariantList YoloNgBoard::posts() const
 
 void YoloNgBoard::refreshPosts()
 {
-    loadPosts();
-    emit postsChanged();
+    if (m_readOnly && !m_channelId.isEmpty()) {
+        fetchPosts();
+    } else {
+        loadPosts();
+        emit postsChanged();
+    }
 }
 
 QString YoloNgBoard::createPost(const QString& author, const QString& content, const QString& parentId)
@@ -212,7 +407,8 @@ QString YoloNgBoard::createPost(const QString& author, const QString& content, c
     }
 
     if (content.trimmed().isEmpty()) {
-        emit errorOccurred(QStringLiteral("Post content cannot be empty"));
+        m_errorMessage = QStringLiteral("Post content cannot be empty");
+        emit errorOccurred(m_errorMessage);
         return QString();
     }
 
@@ -247,7 +443,8 @@ void YoloNgBoard::deletePost(const QString& postId)
             return;
         }
     }
-    emit errorOccurred(QStringLiteral("Post not found"));
+    m_errorMessage = QStringLiteral("Post not found");
+    emit errorOccurred(m_errorMessage);
 }
 
 void YoloNgBoard::likePost(const QString& postId)
@@ -259,7 +456,8 @@ void YoloNgBoard::likePost(const QString& postId)
         emit postsChanged();
         qDebug() << "YoloNgBoard: Liked post" << postId << "- now at" << post->likes;
     } else {
-        emit errorOccurred(QStringLiteral("Post not found"));
+        m_errorMessage = QStringLiteral("Post not found");
+        emit errorOccurred(m_errorMessage);
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <QVariantList>
 #include <QDateTime>
@@ -39,6 +40,8 @@ class YoloNgBoard : public QObject
     Q_PROPERTY(QString channelId READ channelId NOTIFY boardNameChanged)
     Q_PROPERTY(bool readOnly READ readOnly NOTIFY boardNameChanged)
     Q_PROPERTY(bool isConfigured READ isConfigured NOTIFY boardNameChanged)
+    Q_PROPERTY(bool isReadOnly READ isReadOnly NOTIFY isReadOnlyChanged)
+    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorOccurred)
 
 public:
     explicit YoloNgBoard(QObject* parent = nullptr);
@@ -50,10 +53,20 @@ public:
     QString channelId() const { return m_channelId; }
     bool readOnly() const { return m_readOnly; }
     bool isConfigured() const { return !m_boardName.isEmpty(); }
+    bool isReadOnly() const { return m_readOnly; }
+    QString errorMessage() const { return m_errorMessage; }
 
     Q_INVOKABLE void setBoard(const QString& name, const QString& secret);
     Q_INVOKABLE void followBoard(const QString& channelId);
+    Q_INVOKABLE void unfollowBoard(const QString& channelId);
     Q_INVOKABLE void fetchPosts();
+
+    // Multi-board management
+    Q_INVOKABLE QVariantList myBoards() const;
+    Q_INVOKABLE QVariantList followingChannels() const;
+    Q_INVOKABLE void switchToBoard(const QString& name);
+    Q_INVOKABLE void removeBoard(const QString& name);
+    Q_INVOKABLE void disconnectBoard();
 
     // Post management
     QVariantList posts() const;
@@ -80,11 +93,19 @@ signals:
     void postDeleted(const QString& postId);
     void errorOccurred(const QString& message);
     void boardNameChanged();
+    void isReadOnlyChanged();
+    void boardsListChanged();
 
 private:
     QString generatePostId();
     Post* findPost(const QString& id);
     void inscribePost(const QString& postId, const QString& content);
+    void saveMyBoards();
+    void loadMyBoards();
+    void saveFollowing();
+    void loadFollowing();
+    QString kvGet(const char* key);
+    void kvPut(const char* key, const QString& value);
 
 #ifdef LOGOS_CORE_AVAILABLE
     void handleRequest(const QString& method, const QVariantMap& params, void* callback);
@@ -97,6 +118,14 @@ private:
     QString m_checkpointPath;
     QString m_channelId;
     bool m_readOnly = false;
+    QString m_errorMessage;
+
+    // Multi-board state: list of {name, channelId} for my boards
+    QVariantList m_myBoards;
+    // Following state: list of {channelId, name} for followed channels
+    QVariantList m_following;
+    // Cache of board secrets keyed by board name (in-memory only)
+    QMap<QString, QString> m_boardSecrets;
 
 #ifdef LOGOS_CORE_AVAILABLE
     void* m_kv = nullptr;

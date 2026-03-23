@@ -78,11 +78,38 @@ cp zone_sequencer_module/manifest.json $LOGOS_DIR/modules/zone_sequencer_module/
 
 ## Usage
 
-1. Enter a **board name** and **secret** → click Connect
-2. Type a post → click Post
-3. Post is stored locally and inscribed on the Logos blockchain
+### Board selector
+
+On launch you see the **board selector** with two sections:
+
+- **My Boards** — boards you've created (name + secret). Click **Open** to switch, **✕** to remove.
+- **Following** — boards you follow by channel ID (read-only). Click **Open** to view, **✕** to unfollow.
+
+From the selector you can:
+- **+ Create New Board** — enter a name + secret to create/connect
+- **Follow a board by channel ID** — paste a 64-char hex channel ID to follow
+
+### Creating a board
+
+1. Click **+ Create New Board**
+2. Enter a **board name** and **secret** → click Connect
+3. Type a post → click Post
+4. Post is stored locally and inscribed on the Logos blockchain
 
 The first post on a new board creates the channel. Subsequent posts chain off the previous inscription via checkpoint.
+
+### Following a board
+
+1. Paste a **channel ID** (64-char hex) in the follow field → click Follow
+2. Posts are fetched from the chain (read-only)
+3. Tap ↻ to refresh
+
+### Multi-board
+
+- Board name + secret persist across restarts (stored in KV)
+- Multiple boards can be saved; switch between them from the selector
+- Secrets are kept in memory only per-session (not stored in KV list)
+- The ← Back button in the header returns to the board selector
 
 ## Building
 
@@ -107,4 +134,4 @@ Requires nixpkgs `e9f00bd8` (Qt 6.9.2).
 
 - `liblogos_zone_sequencer_module` must be manually loaded in LogosApp before using yolo-ng (dependency auto-loading not yet working)
 - Node URL is hardcoded to Pi5 (`192.168.0.209:8080`) — configurable node support coming
-- No post reading from chain yet (ZoneIndexer not implemented) — posts only visible locally after fresh install
+- Board secrets are cached in memory only per session — after restart, you'll need to re-enter the secret when opening a saved board (the last-active board auto-restores)
