@@ -1,10 +1,9 @@
 # yolo-ng Makefile
 
 LGPM ?= lgpm
-LOGOS_PROFILE ?= LogosAppNix
-LOGOS_DATA_DIR ?= $(HOME)/.local/share/Logos/$(LOGOS_PROFILE)
+LOGOS_DATA_DIR ?= $(HOME)/.local/share/Logos/LogosAppNix
 
-.PHONY: build install-lgx clean
+.PHONY: build install-lgx
 
 build:
 	nix build .#lgx
@@ -14,4 +13,4 @@ install-lgx: build
 		--ui-plugins-dir $(LOGOS_DATA_DIR)/plugins \
 		--modules-dir $(LOGOS_DATA_DIR)/modules
 
-# Override profile: make install-lgx LOGOS_PROFILE=LogosApp
+# Override install dir: LOGOS_DATA_DIR=~/.local/share/Logos/LogosApp make install-lgx
