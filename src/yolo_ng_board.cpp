@@ -10,6 +10,8 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QStandardPaths>
+#include <QTimer>
+#include <QThread>
 #include <logos_api.h>
 #include <logos_api_client.h>
 
@@ -36,11 +38,6 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     m_kvClient = api->getClient("kv_module");
     if (m_kvClient) {
         qInfo() << "YoloNgBoard::initLogos: kv_module client FOUND";
-        // Set persistent data dir so kv_module uses FileBackend, not MemoryBackend
-        QString kvDataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/kv-data";
-        QDir().mkpath(kvDataDir);
-        m_kvClient->invokeRemoteMethod("kv_module", "setDataDir", kvDataDir);
-        qInfo() << "YoloNgBoard::initLogos: kv data dir set to" << kvDataDir;
         loadMyBoards();
         loadFollowing();
 
