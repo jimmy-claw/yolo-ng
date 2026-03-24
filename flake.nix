@@ -149,13 +149,16 @@
             # Create the lgx package
             lgx create yolo-ng
 
-            # Patch manifest with ui_metadata.json content
-            python3 - yolo-ng.lgx ${./ui_metadata.json} <<'PY'
+            # Patch manifest with manifest.json (core module metadata with dependencies)
+            python3 - yolo-ng.lgx ${./manifest.json} <<'PY'
             import json, sys, tarfile, io
 
             lgx_path = sys.argv[1]
             with open(sys.argv[2]) as f:
                 metadata = json.load(f)
+
+            # Only include main entries for variants we actually package
+            built_variants = {'linux-x86_64-dev', 'linux-amd64-dev'}
 
             with tarfile.open(lgx_path, 'r:gz') as tar:
                 members = [(m, tar.extractfile(m).read() if m.isfile() else None) for m in tar.getmembers()]
@@ -164,9 +167,11 @@
             for member, data in members:
                 if member.name == 'manifest.json':
                     manifest = json.loads(data)
-                    for key in ('name', 'version', 'description', 'author', 'type', 'category', 'dependencies', 'manifestVersion'):
+                    for key in ('name', 'version', 'description', 'author', 'type', 'category', 'dependencies', 'main', 'capabilities', 'manifestVersion'):
                         if key in metadata:
                             manifest[key] = metadata[key]
+                    if 'main' in manifest and isinstance(manifest['main'], dict):
+                        manifest['main'] = {k: v for k, v in manifest['main'].items() if k in built_variants}
                     data = json.dumps(manifest, indent=2).encode()
                     member.size = len(data)
                 patched.append((member, data))
@@ -179,12 +184,14 @@
                         tar.addfile(member)
             PY
 
-            # Stage the UI plugin (rename to remove lib prefix)
-            cp ${ui-plugin}/lib/libyolo_ng_ui.so ./yolo_ng_ui.so
+            # Stage both plugins into a directory
+            mkdir -p variant-files
+            cp ${headless-plugin}/lib/yolo_ng_plugin.so variant-files/
+            cp ${ui-plugin}/lib/libyolo_ng_ui.so variant-files/yolo_ng_ui.so
 
-            # Add variants
-            lgx add yolo-ng.lgx --variant linux-x86_64-dev --files ./yolo_ng_ui.so -y
-            lgx add yolo-ng.lgx --variant linux-amd64-dev --files ./yolo_ng_ui.so -y
+            # Add variants with both core module and UI plugin
+            lgx add yolo-ng.lgx --variant linux-x86_64-dev --files ./variant-files --main yolo_ng_plugin.so -y
+            lgx add yolo-ng.lgx --variant linux-amd64-dev --files ./variant-files --main yolo_ng_plugin.so -y
 
             # Verify the package
             lgx verify yolo-ng.lgx
