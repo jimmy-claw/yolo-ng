@@ -151,7 +151,7 @@
             with open(sys.argv[2]) as f:
                 metadata = json.load(f)
 
-            built_variants = {'linux-x86_64', 'linux-amd64'}
+            built_variants = {'linux-x86_64-dev', 'linux-amd64-dev'}
 
             with tarfile.open(lgx_path, 'r:gz') as tar:
                 members = [(m, tar.extractfile(m).read() if m.isfile() else None) for m in tar.getmembers()]
@@ -160,7 +160,7 @@
             for member, data in members:
                 if member.name == 'manifest.json':
                     manifest = json.loads(data)
-                    for key in ('name', 'version', 'description', 'author', 'type', 'category', 'dependencies', 'main', 'capabilities', 'manifestVersion'):
+                    for key in ('name', 'version', 'description', 'author', 'type', 'category', 'dependencies', 'capabilities', 'manifestVersion'):
                         if key in metadata:
                             manifest[key] = metadata[key]
                     if 'main' in manifest and isinstance(manifest['main'], dict):
