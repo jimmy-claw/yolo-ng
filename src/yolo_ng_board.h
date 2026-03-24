@@ -130,7 +130,7 @@ private:
     QMap<QString, QString> m_boardSecrets;
 
 #ifdef LOGOS_CORE_AVAILABLE
-    void* m_kv = nullptr;
+    LogosAPIClient* m_kvClient = nullptr;
 #endif
     LogosAPIClient* m_zoneSequencer = nullptr;
     LogosAPI* m_logosAPI = nullptr;

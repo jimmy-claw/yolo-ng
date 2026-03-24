@@ -33,22 +33,12 @@ void YoloNgBoard::initLogos(LogosAPI* api)
     }
 
 #ifdef LOGOS_CORE_AVAILABLE
-    {
-        void* self = dlopen(nullptr, RTLD_NOW);
-        if (self) {
-            auto sym = dlsym(self, "logos_core_get_kv_interface");
-            if (sym) { auto fn = reinterpret_cast<void*(*)()>(sym); m_kv = fn(); }
-            dlclose(self);
-        }
-    }
-    qDebug() << "YoloNgBoard::initLogos: KV interface" << (m_kv ? "FOUND" : "NOT FOUND");
-
-    if (m_kv) {
-        // Restore board lists from KV (requires KV to be available)
+    m_kvClient = api->getClient("kv_module");
+    if (m_kvClient) {
+        qInfo() << "YoloNgBoard::initLogos: kv_module client FOUND";
         loadMyBoards();
         loadFollowing();
 
-        // Restore last active board name, secret, key, checkpoint from KV
         QString savedName = kvGet("yolo_ng_board_name");
         QString savedSecret = kvGet("yolo_ng_board_secret");
         if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
@@ -57,10 +47,8 @@ void YoloNgBoard::initLogos(LogosAPI* api)
             setBoard(savedName, savedSecret);
         }
 
-        // Load posts from KV (requires KV to be available)
         loadPosts();
 
-        // Create a welcome post if board is empty and no board is active
         if (m_posts.isEmpty() && m_boardName.isEmpty()) {
             Post welcome;
             welcome.id = generatePostId();
@@ -73,6 +61,8 @@ void YoloNgBoard::initLogos(LogosAPI* api)
 
         emit postsChanged();
         emit boardsListChanged();
+    } else {
+        qWarning() << "YoloNgBoard::initLogos: kv_module client NOT FOUND - no persistence";
     }
 #endif
 
@@ -91,32 +81,22 @@ void YoloNgBoard::initLogos(LogosAPI* api)
 QString YoloNgBoard::kvGet(const char* key)
 {
 #ifdef LOGOS_CORE_AVAILABLE
-    if (!m_kv) return {};
-    void* libself = dlopen(nullptr, RTLD_NOW);
-    auto kv_get = libself ? (bool(*)(void*,const char*,char**))dlsym(libself, "logos_kv_get") : nullptr;
-    auto kv_free = libself ? (void(*)(char*))dlsym(libself, "logos_kv_free") : nullptr;
-    if (libself) dlclose(libself);
-
-    char* data = nullptr;
-    if (kv_get && kv_get(m_kv, key, &data) && data) {
-        QString result = QString::fromUtf8(data);
-        if (kv_free) kv_free(data);
-        return result;
-    }
+    if (!m_kvClient) return {};
+    QVariant result = m_kvClient->invokeRemoteMethod("kv_module", "get",
+                                                     QStringLiteral("yolo_ng"), QString::fromUtf8(key));
+    return result.toString();
 #else
     Q_UNUSED(key);
-#endif
     return {};
+#endif
 }
 
 void YoloNgBoard::kvPut(const char* key, const QString& value)
 {
 #ifdef LOGOS_CORE_AVAILABLE
-    if (!m_kv) return;
-    void* libself = dlopen(nullptr, RTLD_NOW);
-    auto kv_put = libself ? (bool(*)(void*,const char*,const char*))dlsym(libself, "logos_kv_put") : nullptr;
-    if (libself) dlclose(libself);
-    if (kv_put) kv_put(m_kv, key, value.toUtf8().constData());
+    if (!m_kvClient) return;
+    m_kvClient->invokeRemoteMethod("kv_module", "set",
+                                   QStringLiteral("yolo_ng"), QString::fromUtf8(key), value);
 #else
     Q_UNUSED(key); Q_UNUSED(value);
 #endif
@@ -530,42 +510,31 @@ void YoloNgBoard::inscribePost(const QString& postId, const QString& content)
 bool YoloNgBoard::loadPosts()
 {
 #ifdef LOGOS_CORE_AVAILABLE
-    if (!m_kv) {
-        return false;
-    }
+    if (!m_kvClient) return false;
+    QString json = kvGet("yolo_ng_posts");
+    if (json.isEmpty()) return false;
 
-    // KV functions via dlsym
-    void* libself = dlopen(nullptr, RTLD_NOW);
-    auto kv_get = libself ? (bool(*)(void*,const char*,char**))dlsym(libself, "logos_kv_get") : nullptr;
-    auto kv_free = libself ? (void(*)(char*))dlsym(libself, "logos_kv_free") : nullptr;
-    if (libself) dlclose(libself);
-
-    char* data = nullptr;
-    if (kv_get && kv_get(m_kv, "yolo_ng_posts", &data) && data) {
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(QByteArray(data), &error);
-        if (kv_free) kv_free(data);
-
-        if (error.error == QJsonParseError::NoError && doc.isArray()) {
-            m_posts.clear();
-            for (const auto& item : doc.array()) {
-                if (item.isObject()) {
-                    QJsonObject obj = item.toObject();
-                    Post post;
-                    post.id = obj[QStringLiteral("id")].toString();
-                    post.author = obj[QStringLiteral("author")].toString();
-                    post.content = obj[QStringLiteral("content")].toString();
-                    post.timestamp = QDateTime::fromString(
-                        obj[QStringLiteral("timestamp")].toString(), Qt::ISODate);
-                    post.likes = obj[QStringLiteral("likes")].toInt();
-                    post.parentId = obj[QStringLiteral("parentId")].toString();
-                    post.inscriptionId = obj[QStringLiteral("inscriptionId")].toString();
-                    m_posts.append(post);
-                }
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8(), &error);
+    if (error.error == QJsonParseError::NoError && doc.isArray()) {
+        m_posts.clear();
+        for (const auto& item : doc.array()) {
+            if (item.isObject()) {
+                QJsonObject obj = item.toObject();
+                Post post;
+                post.id = obj[QStringLiteral("id")].toString();
+                post.author = obj[QStringLiteral("author")].toString();
+                post.content = obj[QStringLiteral("content")].toString();
+                post.timestamp = QDateTime::fromString(
+                    obj[QStringLiteral("timestamp")].toString(), Qt::ISODate);
+                post.likes = obj[QStringLiteral("likes")].toInt();
+                post.parentId = obj[QStringLiteral("parentId")].toString();
+                post.inscriptionId = obj[QStringLiteral("inscriptionId")].toString();
+                m_posts.append(post);
             }
-            qDebug() << "YoloNgBoard: Loaded" << m_posts.size() << "posts from storage";
-            return true;
         }
+        qDebug() << "YoloNgBoard: Loaded" << m_posts.size() << "posts from storage";
+        return true;
     }
 #endif
     return false;
@@ -574,13 +543,7 @@ bool YoloNgBoard::loadPosts()
 bool YoloNgBoard::savePosts()
 {
 #ifdef LOGOS_CORE_AVAILABLE
-    if (!m_kv) {
-        return false;
-    }
-
-    void* libself2 = dlopen(nullptr, RTLD_NOW);
-    auto kv_put = libself2 ? (bool(*)(void*,const char*,const char*))dlsym(libself2, "logos_kv_put") : nullptr;
-    if (libself2) dlclose(libself2);
+    if (!m_kvClient) return false;
 
     QJsonArray array;
     for (const auto& post : m_posts) {
@@ -595,8 +558,7 @@ bool YoloNgBoard::savePosts()
         array.append(obj);
     }
 
-    QJsonDocument doc(array);
-    if (kv_put) kv_put(m_kv, "yolo_ng_posts", doc.toJson(QJsonDocument::Compact).constData());
+    kvPut("yolo_ng_posts", QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact)));
     qDebug() << "YoloNgBoard: Saved" << m_posts.size() << "posts to storage";
     return true;
 #else
