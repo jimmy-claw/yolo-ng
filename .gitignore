@@ -24,6 +24,8 @@ Makefile
 *.pro.user
 *.autosave
 result
+result-*
+*.lgx
 build-nix/
 dist/*.lgx
 not_this
