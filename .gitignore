@@ -30,3 +30,4 @@ not_this
 
 # Keep dist lgx
 !dist/*.lgx
+!Makefile
