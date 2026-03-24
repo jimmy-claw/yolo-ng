@@ -12,7 +12,7 @@
   },
   "dependencies": [
     "kv_module",
-    "zone_sequencer_module"
+    "liblogos_zone_sequencer_module"
   ],
   "capabilities": [],
   "manifestVersion": "0.1.0"
