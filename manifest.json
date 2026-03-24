@@ -6,9 +6,9 @@
   "type": "core",
   "category": "social",
   "main": {
-    "linux-x86_64": "yolo_ng_plugin.so",
-    "linux-amd64": "yolo_ng_plugin.so",
-    "linux-aarch64": "yolo_ng_plugin.so"
+    "linux-x86_64-dev": "yolo_ng_plugin.so",
+    "linux-amd64-dev": "yolo_ng_plugin.so",
+    "linux-aarch64-dev": "yolo_ng_plugin.so"
   },
   "dependencies": [
     "kv_module",
