@@ -46,7 +46,7 @@ Rectangle {
                 }
 
                 Repeater {
-                    model: board ? board.myBoards() : []
+                    model: board ? board.myBoardsList : []
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -117,7 +117,7 @@ Rectangle {
 
                 // Empty state for my boards
                 Text {
-                    visible: !board || board.myBoards().length === 0
+                    visible: !board || board.myBoardsList.length === 0
                     text: "No boards yet. Create one below."
                     color: "#666666"
                     font.pixelSize: 14
@@ -155,7 +155,7 @@ Rectangle {
                 }
 
                 Repeater {
-                    model: board ? board.followingChannels() : []
+                    model: board ? board.followingList : []
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -228,7 +228,7 @@ Rectangle {
 
                 // Empty state for following
                 Text {
-                    visible: !board || board.followingChannels().length === 0
+                    visible: !board || board.followingList.length === 0
                     text: "Not following any boards yet."
                     color: "#666666"
                     font.pixelSize: 14

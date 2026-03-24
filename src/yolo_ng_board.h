@@ -42,6 +42,8 @@ class YoloNgBoard : public QObject
     Q_PROPERTY(bool isConfigured READ isConfigured NOTIFY boardNameChanged)
     Q_PROPERTY(bool isReadOnly READ isReadOnly NOTIFY isReadOnlyChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorOccurred)
+    Q_PROPERTY(QVariantList myBoardsList READ myBoards NOTIFY boardsListChanged)
+    Q_PROPERTY(QVariantList followingList READ followingChannels NOTIFY boardsListChanged)
 
 public:
     explicit YoloNgBoard(QObject* parent = nullptr);

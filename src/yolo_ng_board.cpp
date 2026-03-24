@@ -16,49 +16,7 @@
 YoloNgBoard::YoloNgBoard(QObject* parent)
     : QObject(parent)
 {
-    qDebug() << "YoloNgBoard: Created";
-
-#ifdef LOGOS_CORE_AVAILABLE
-    // Try to get KV interface from Logos core via dlsym (optional)
-    {
-        void* sym = nullptr;
-        void* self = dlopen(nullptr, RTLD_NOW);
-        if (self) { sym = dlsym(self, "logos_core_get_kv_interface"); dlclose(self); }
-        if (sym) {
-            auto fn = reinterpret_cast<void*(*)()>(sym);
-            m_kv = fn();
-        }
-    }
-    qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
-
-    // Load saved board lists
-    loadMyBoards();
-    loadFollowing();
-
-    // Restore last active board name+secret from KV
-    if (m_kv) {
-        QString savedName = kvGet("yolo_ng_board_name");
-        QString savedSecret = kvGet("yolo_ng_board_secret");
-        if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
-            qInfo() << "YoloNgBoard: restoring saved board" << savedName;
-            m_boardSecrets[savedName] = savedSecret;
-            setBoard(savedName, savedSecret);
-        }
-    }
-#endif
-
-    loadPosts();
-
-    // Create a welcome post if board is empty
-    if (m_posts.isEmpty()) {
-        Post welcome;
-        welcome.id = generatePostId();
-        welcome.author = QStringLiteral("system");
-        welcome.content = QStringLiteral("Welcome to YOLO-NG! Create your first post.");
-        welcome.timestamp = QDateTime::currentDateTime();
-        m_posts.append(welcome);
-        savePosts();
-    }
+    qDebug() << "YoloNgBoard: Created (KV-dependent init deferred to initLogos)";
 }
 
 YoloNgBoard::~YoloNgBoard()
@@ -83,7 +41,39 @@ void YoloNgBoard::initLogos(LogosAPI* api)
             dlclose(self);
         }
     }
-    qDebug() << "YoloNgBoard: KV interface" << (m_kv ? "available" : "not available");
+    qDebug() << "YoloNgBoard::initLogos: KV interface" << (m_kv ? "FOUND" : "NOT FOUND");
+
+    if (m_kv) {
+        // Restore board lists from KV (requires KV to be available)
+        loadMyBoards();
+        loadFollowing();
+
+        // Restore last active board name, secret, key, checkpoint from KV
+        QString savedName = kvGet("yolo_ng_board_name");
+        QString savedSecret = kvGet("yolo_ng_board_secret");
+        if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
+            qInfo() << "YoloNgBoard: restoring saved board" << savedName;
+            m_boardSecrets[savedName] = savedSecret;
+            setBoard(savedName, savedSecret);
+        }
+
+        // Load posts from KV (requires KV to be available)
+        loadPosts();
+
+        // Create a welcome post if board is empty and no board is active
+        if (m_posts.isEmpty() && m_boardName.isEmpty()) {
+            Post welcome;
+            welcome.id = generatePostId();
+            welcome.author = QStringLiteral("system");
+            welcome.content = QStringLiteral("Welcome to YOLO-NG! Create your first post.");
+            welcome.timestamp = QDateTime::currentDateTime();
+            m_posts.append(welcome);
+            savePosts();
+        }
+
+        emit postsChanged();
+        emit boardsListChanged();
+    }
 #endif
 
     m_zoneSequencer = api->getClient("liblogos_zone_sequencer_module");
@@ -153,9 +143,11 @@ void YoloNgBoard::setBoard(const QString& name, const QString& secret)
     // Cache secret in memory
     m_boardSecrets[name] = secret;
 
-    // Persist last-active board
+    // Persist last-active board (name, secret, signing key, checkpoint)
     kvPut("yolo_ng_board_name", name);
     kvPut("yolo_ng_board_secret", secret);
+    kvPut("yolo_ng_signing_key", m_signingKeyHex);
+    kvPut("yolo_ng_checkpoint_path", m_checkpointPath);
 
     // Add to myBoards if not already present
     bool found = false;
@@ -340,6 +332,10 @@ void YoloNgBoard::fetchPosts() {
     }
     if (!m_zoneSequencer || m_channelId.isEmpty()) {
         qWarning() << "YoloNgBoard: cannot fetch posts - sequencer:" << (m_zoneSequencer != nullptr) << "channelId:" << m_channelId;
+        m_errorMessage = m_channelId.isEmpty()
+            ? QStringLiteral("No channel ID set")
+            : QStringLiteral("Zone sequencer not available — cannot refresh");
+        emit errorOccurred(m_errorMessage);
         return;
     }
 
