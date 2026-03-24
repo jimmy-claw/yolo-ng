@@ -82,6 +82,7 @@ if(BUILD_MODULE)
     target_compile_definitions(yolo_ng_plugin PRIVATE
         QT_PLUGIN
         YOLO_NG_PLUGIN
+        $<$<BOOL:${LOGOS_CORE_AVAILABLE}>:LOGOS_CORE_AVAILABLE>
     )
 
     if(APPLE)
