@@ -143,21 +143,14 @@
             dontWrapQtApps = true;
           };
 
-          lgx = pkgs.runCommand "yolo-ng.lgx" {
-            nativeBuildInputs = [ lgxTool pkgs.python3 ];
-          } ''
-            # Create the lgx package
-            lgx create yolo-ng
-
-            # Patch manifest with manifest.json (core module metadata with dependencies)
-            python3 - yolo-ng.lgx ${./manifest.json} <<'PY'
+          patchManifest = name: metadataFile: ''
+            python3 - ${name}.lgx ${metadataFile} <<'PY'
             import json, sys, tarfile, io
 
             lgx_path = sys.argv[1]
             with open(sys.argv[2]) as f:
                 metadata = json.load(f)
 
-            # Only include main entries for variants we actually package
             built_variants = {'linux-x86_64-dev', 'linux-amd64-dev'}
 
             with tarfile.open(lgx_path, 'r:gz') as tar:
@@ -183,23 +176,48 @@
                     else:
                         tar.addfile(member)
             PY
+          '';
 
-            # Stage both plugins into a directory
+          lgx-core = pkgs.runCommand "yolo-ng-core.lgx" {
+            nativeBuildInputs = [ lgxTool pkgs.python3 ];
+          } ''
+            lgx create yolo-ng-core
+            ${patchManifest "yolo-ng-core" ./manifest.json}
+
             mkdir -p variant-files
             cp ${headless-plugin}/lib/yolo_ng_plugin.so variant-files/
+
+            lgx add yolo-ng-core.lgx --variant linux-x86_64-dev --files ./variant-files --main yolo_ng_plugin.so -y
+            lgx add yolo-ng-core.lgx --variant linux-amd64-dev --files ./variant-files --main yolo_ng_plugin.so -y
+
+            lgx verify yolo-ng-core.lgx
+
+            mkdir -p $out
+            cp yolo-ng-core.lgx $out/yolo-ng-core.lgx
+          '';
+
+          lgx-ui = pkgs.runCommand "yolo-ng-ui.lgx" {
+            nativeBuildInputs = [ lgxTool pkgs.python3 ];
+          } ''
+            lgx create yolo-ng-ui
+            ${patchManifest "yolo-ng-ui" ./ui_metadata.json}
+
+            mkdir -p variant-files
             cp ${ui-plugin}/lib/libyolo_ng_ui.so variant-files/yolo_ng_ui.so
 
-            # Add variants with both core module and UI plugin
-            lgx add yolo-ng.lgx --variant linux-x86_64-dev --files ./variant-files --main yolo_ng_plugin.so -y
-            lgx add yolo-ng.lgx --variant linux-amd64-dev --files ./variant-files --main yolo_ng_plugin.so -y
+            lgx add yolo-ng-ui.lgx --variant linux-x86_64-dev --files ./variant-files --main yolo_ng_ui.so -y
+            lgx add yolo-ng-ui.lgx --variant linux-amd64-dev --files ./variant-files --main yolo_ng_ui.so -y
 
-            # Verify the package
-            lgx verify yolo-ng.lgx
+            lgx verify yolo-ng-ui.lgx
 
-            # Install
             mkdir -p $out
-            cp yolo-ng.lgx $out/yolo-ng.lgx
+            cp yolo-ng-ui.lgx $out/yolo-ng-ui.lgx
           '';
+
+          lgx = pkgs.symlinkJoin {
+            name = "yolo-ng-lgx";
+            paths = [ lgx-core lgx-ui ];
+          };
 
         in
         base // {
@@ -207,7 +225,7 @@
             mkdir -p $out/qml
             cp -r ${./qml}/* $out/qml/
           '';
-          inherit headless-plugin ui-plugin lgx;
+          inherit headless-plugin ui-plugin lgx lgx-core lgx-ui;
         }
       );
     };
