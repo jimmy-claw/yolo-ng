@@ -151,7 +151,7 @@
             with open(sys.argv[2]) as f:
                 metadata = json.load(f)
 
-            built_variants = {'linux-x86_64-dev', 'linux-amd64-dev'}
+            built_variants = {'linux-x86_64', 'linux-amd64'}
 
             with tarfile.open(lgx_path, 'r:gz') as tar:
                 members = [(m, tar.extractfile(m).read() if m.isfile() else None) for m in tar.getmembers()]
@@ -164,7 +164,7 @@
                         if key in metadata:
                             manifest[key] = metadata[key]
                     if 'main' in manifest and isinstance(manifest['main'], dict):
-                        manifest['main'] = {k: v for k, v in manifest['main'].items() if k in built_variants}
+                        manifest["main"] = {k.replace("-dev", ""): v for k, v in manifest["main"].items() if k in built_variants}
                     data = json.dumps(manifest, indent=2).encode()
                     member.size = len(data)
                 patched.append((member, data))
@@ -182,7 +182,6 @@
             nativeBuildInputs = [ lgxTool pkgs.python3 ];
           } ''
             lgx create yolo-ng-core
-            ${patchManifest "yolo-ng-core" ./manifest.json}
 
             mkdir -p variant-files
             cp ${headless-plugin}/lib/yolo_ng_plugin.so variant-files/
@@ -192,6 +191,8 @@
 
             lgx verify yolo-ng-core.lgx
 
+            ${patchManifest "yolo-ng-core" ./manifest.json}
+
             mkdir -p $out
             cp yolo-ng-core.lgx $out/yolo-ng-core.lgx
           '';
@@ -200,7 +201,6 @@
             nativeBuildInputs = [ lgxTool pkgs.python3 ];
           } ''
             lgx create yolo-ng-ui
-            ${patchManifest "yolo-ng-ui" ./ui_metadata.json}
 
             mkdir -p variant-files
             cp ${ui-plugin}/lib/libyolo_ng_ui.so variant-files/yolo_ng_ui.so
@@ -209,6 +209,8 @@
             lgx add yolo-ng-ui.lgx --variant linux-amd64-dev --files ./variant-files --main yolo_ng_ui.so -y
 
             lgx verify yolo-ng-ui.lgx
+
+            ${patchManifest "yolo-ng-ui" ./ui_metadata.json}
 
             mkdir -p $out
             cp yolo-ng-ui.lgx $out/yolo-ng-ui.lgx
