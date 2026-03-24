@@ -9,9 +9,9 @@
         "yolo_ng"
     ],
     "main": {
-        "linux-x86_64": "yolo_ng_ui.so",
-        "linux-amd64": "yolo_ng_ui.so",
-        "linux-aarch64": "yolo_ng_ui.so"
+        "linux-x86_64-dev": "yolo_ng_ui.so",
+        "linux-amd64-dev": "yolo_ng_ui.so",
+        "linux-aarch64-dev": "yolo_ng_ui.so"
     },
     "manifestVersion": "0.1.0"
 }
