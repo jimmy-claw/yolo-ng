@@ -25,4 +25,8 @@ Makefile
 *.autosave
 result
 build-nix/
-*.lgx
+dist/*.lgx
+not_this
+
+# Keep dist lgx
+!dist/*.lgx
