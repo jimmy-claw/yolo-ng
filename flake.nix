@@ -13,9 +13,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.logos-cpp-sdk.follows = "logos-cpp-sdk";
     };
+    logos-package = {
+      url = "github:logos-co/logos-package";
+    };
   };
 
-  outputs = { self, logos-module-builder, nixpkgs, logos-cpp-sdk, logos-liblogos, ... }:
+  outputs = { self, logos-module-builder, nixpkgs, logos-cpp-sdk, logos-liblogos, logos-package, ... }:
     let
       moduleOutputs = logos-module-builder.lib.mkLogosModule {
         src = ./.;
@@ -26,10 +29,11 @@
         pkgs = import nixpkgs { inherit system; };
         logosSdk = logos-cpp-sdk.packages.${system}.default;
         logosLiblogos = logos-liblogos.packages.${system}.default;
+        lgxTool = logos-package.packages.${system}.lgx;
       });
     in
     moduleOutputs // {
-      packages = forAllSystems ({ pkgs, logosSdk, logosLiblogos }:
+      packages = forAllSystems ({ pkgs, logosSdk, logosLiblogos, lgxTool }:
         let
           base = moduleOutputs.packages.${pkgs.system} or {};
 
@@ -140,40 +144,54 @@
           };
 
           lgx = pkgs.runCommand "yolo-ng.lgx" {
-            nativeBuildInputs = [ pkgs.gnutar ];
+            nativeBuildInputs = [ lgxTool pkgs.python3 ];
           } ''
-            staging=$(mktemp -d)
+            # Create the lgx package
+            lgx create yolo-ng
 
-            # Headless module
-            mkdir -p $staging/modules/yolo_ng
-            cp ${headless-plugin}/lib/yolo_ng_plugin.so $staging/modules/yolo_ng/yolo_ng_plugin.so
-            cp ${./manifest.json} $staging/modules/yolo_ng/manifest.json
+            # Patch manifest with ui_metadata.json content
+            python3 - yolo-ng.lgx ${./ui_metadata.json} <<'PY'
+            import json, sys, tarfile, io
 
-            # UI plugin (rename lib prefix off)
-            mkdir -p $staging/plugins/yolo_ng_ui
-            cp ${ui-plugin}/lib/libyolo_ng_ui.so $staging/plugins/yolo_ng_ui/yolo_ng_ui.so
-            cp ${./ui_metadata.json} $staging/plugins/yolo_ng_ui/manifest.json
-            cp -r ${./qml} $staging/plugins/yolo_ng_ui/qml
+            lgx_path = sys.argv[1]
+            with open(sys.argv[2]) as f:
+                metadata = json.load(f)
 
-            # Install script
-            cat > $staging/install.sh <<'INSTALL'
-            #!/usr/bin/env bash
-            set -e
-            SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-            LOGOS_DIR="''${LOGOS_DIR:-$HOME/.local/share/Logos/LogosAppNix}"
-            echo "Installing yolo-ng to $LOGOS_DIR..."
-            install -Dm755 "$SCRIPT_DIR/modules/yolo_ng/yolo_ng_plugin.so" "$LOGOS_DIR/modules/yolo_ng/yolo_ng_plugin.so"
-            install -Dm644 "$SCRIPT_DIR/modules/yolo_ng/manifest.json" "$LOGOS_DIR/modules/yolo_ng/manifest.json"
-            install -Dm755 "$SCRIPT_DIR/plugins/yolo_ng_ui/yolo_ng_ui.so" "$LOGOS_DIR/plugins/yolo_ng_ui/yolo_ng_ui.so"
-            install -Dm644 "$SCRIPT_DIR/plugins/yolo_ng_ui/manifest.json" "$LOGOS_DIR/plugins/yolo_ng_ui/manifest.json"
-            cp -rf "$SCRIPT_DIR/plugins/yolo_ng_ui/qml" "$LOGOS_DIR/plugins/yolo_ng_ui/"
-            echo "Done. Restart LogosApp to load yolo-ng."
-            INSTALL
-            chmod +x $staging/install.sh
+            with tarfile.open(lgx_path, 'r:gz') as tar:
+                members = [(m, tar.extractfile(m).read() if m.isfile() else None) for m in tar.getmembers()]
 
-            # Package as gzipped tarball
+            patched = []
+            for member, data in members:
+                if member.name == 'manifest.json':
+                    manifest = json.loads(data)
+                    for key in ('name', 'version', 'description', 'author', 'type', 'category', 'dependencies', 'manifestVersion'):
+                        if key in metadata:
+                            manifest[key] = metadata[key]
+                    data = json.dumps(manifest, indent=2).encode()
+                    member.size = len(data)
+                patched.append((member, data))
+
+            with tarfile.open(lgx_path, 'w:gz', format=tarfile.GNU_FORMAT) as tar:
+                for member, data in patched:
+                    if data is not None:
+                        tar.addfile(member, io.BytesIO(data))
+                    else:
+                        tar.addfile(member)
+            PY
+
+            # Stage the UI plugin (rename to remove lib prefix)
+            cp ${ui-plugin}/lib/libyolo_ng_ui.so ./yolo_ng_ui.so
+
+            # Add variants
+            lgx add yolo-ng.lgx --variant linux-x86_64-dev --files ./yolo_ng_ui.so -y
+            lgx add yolo-ng.lgx --variant linux-amd64-dev --files ./yolo_ng_ui.so -y
+
+            # Verify the package
+            lgx verify yolo-ng.lgx
+
+            # Install
             mkdir -p $out
-            tar czf $out/yolo-ng.lgx -C $staging .
+            cp yolo-ng.lgx $out/yolo-ng.lgx
           '';
 
         in
