@@ -23,3 +23,5 @@ Makefile
 .vscode/
 *.pro.user
 *.autosave
+result
+build-nix/
