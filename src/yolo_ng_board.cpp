@@ -37,32 +37,37 @@ void YoloNgBoard::initLogos(LogosAPI* api)
 #ifdef LOGOS_CORE_AVAILABLE
     m_kvClient = api->getClient("kv_module");
     if (m_kvClient) {
-        qInfo() << "YoloNgBoard::initLogos: kv_module client FOUND";
-        loadMyBoards();
-        loadFollowing();
-
-        QString savedName = kvGet("yolo_ng_board_name");
-        QString savedSecret = kvGet("yolo_ng_board_secret");
-        if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
-            qInfo() << "YoloNgBoard: restoring saved board" << savedName;
-            m_boardSecrets[savedName] = savedSecret;
-            setBoard(savedName, savedSecret);
-        }
-
-        loadPosts();
-
-        if (m_posts.isEmpty() && m_boardName.isEmpty()) {
-            Post welcome;
-            welcome.id = generatePostId();
-            welcome.author = QStringLiteral("system");
-            welcome.content = QStringLiteral("Welcome to YOLO-NG! Create your first post.");
-            welcome.timestamp = QDateTime::currentDateTime();
-            m_posts.append(welcome);
-            savePosts();
-        }
-
-        emit postsChanged();
-        emit boardsListChanged();
+        qInfo() << "YoloNgBoard::initLogos: kv_module client FOUND - deferring KV init";
+        // QtRO calls need the event loop running - defer via timer
+        QTimer::singleShot(500, this, [this]() {
+            QString kvDataDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                                + "/.local/share/Logos/LogosApp/kv-data";
+            QDir().mkpath(kvDataDir);
+            m_kvClient->invokeRemoteMethodAsync("kv_module", "setDataDir", kvDataDir, [this](const QVariant&) {
+                qInfo() << "YoloNgBoard: kv setDataDir done, loading state";
+                loadMyBoards();
+                loadFollowing();
+                QString savedName = kvGet("yolo_ng_board_name");
+                QString savedSecret = kvGet("yolo_ng_board_secret");
+                if (!savedName.isEmpty() && !savedSecret.isEmpty()) {
+                    qInfo() << "YoloNgBoard: restoring saved board" << savedName;
+                    m_boardSecrets[savedName] = savedSecret;
+                    setBoard(savedName, savedSecret);
+                }
+                loadPosts();
+                if (m_posts.isEmpty() && m_boardName.isEmpty()) {
+                    Post welcome;
+                    welcome.id = generatePostId();
+                    welcome.author = QStringLiteral("system");
+                    welcome.content = QStringLiteral("Welcome to YOLO-NG! Create your first post.");
+                    welcome.timestamp = QDateTime::currentDateTime();
+                    m_posts.append(welcome);
+                    savePosts();
+                }
+                emit postsChanged();
+                emit boardsListChanged();
+            });
+        });
     } else {
         qWarning() << "YoloNgBoard::initLogos: kv_module client NOT FOUND - no persistence";
     }
